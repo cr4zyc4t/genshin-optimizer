@@ -71,3 +71,7 @@ vitest.config.*.timestamp*
 
 .nx/polygraph
 .nx/self-healing
+.github/hooks/context-mode.json
+.github/context-mode/sessions/stats-pid-1.json
+.github/context-mode/sessions/stats-pid-98736.json
+.codegraph/
