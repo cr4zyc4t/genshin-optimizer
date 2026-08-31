@@ -11,6 +11,7 @@ import { CardThemed } from '@genshin-optimizer/common/ui'
 import { range } from '@genshin-optimizer/common/util'
 import { DatabaseContext } from '@genshin-optimizer/gi/db-ui'
 import {
+  Avatar,
   Box,
   Button,
   CardContent,
@@ -28,8 +29,18 @@ import { CloudSyncContext } from '../../context/CloudSyncContext'
 
 export function CloudSyncCard() {
   const { t } = useTranslation(['settings'])
-  const { configured, authStatus, signIn, signOut, settings, setSettings } =
-    useContext(CloudSyncContext)
+  const {
+    configured,
+    authStatus,
+    signIn,
+    signOut,
+    settings,
+    setSettings,
+    status,
+    conflictInfo,
+    resolveConflict,
+  } = useContext(CloudSyncContext)
+    console.log("🚀 ~ CloudSyncCard ~ configured:", configured)
 
   if (!configured) return null
 
@@ -44,6 +55,18 @@ export function CloudSyncCard() {
           {t('cloudSyncCard.desc')}
         </Typography>
         <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
+          {/* M6: show signed-in account info (email + avatar) when available */}
+          {authStatus === 'signed-in' && settings.account && (
+            <Box display="flex" alignItems="center" gap={1}>
+              {settings.account.avatarUrl && (
+                <Avatar
+                  src={settings.account.avatarUrl}
+                  sx={{ width: 28, height: 28 }}
+                />
+              )}
+              <Typography variant="body2">{settings.account.email}</Typography>
+            </Box>
+          )}
           <SignInButton
             status={authStatus}
             signInLabel={t('cloudSyncCard.signIn')}
@@ -81,6 +104,28 @@ export function CloudSyncCard() {
           </Grid>
         )}
       </CardContent>
+      {/* ConflictDialog lives once at card level — not per slot row — since only the active
+          slot ever enters conflict state and there is only one engine running at a time. */}
+      <ConflictDialog
+        open={status === 'conflict'}
+        conflict={conflictInfo}
+        labels={{
+          title: t('cloudSyncCard.conflictDialog.title'),
+          desc: t('cloudSyncCard.conflictDialog.desc'),
+          local: t('cloudSyncCard.conflictDialog.local'),
+          cloud: t('cloudSyncCard.conflictDialog.cloud'),
+          lastModified: t('cloudSyncCard.conflictDialog.lastModified'),
+          size: t('cloudSyncCard.conflictDialog.size'),
+          keepLocal: t('cloudSyncCard.conflictDialog.keepLocal'),
+          keepCloud: t('cloudSyncCard.conflictDialog.keepCloud'),
+          cancel: t('cloudSyncCard.conflictDialog.cancel'),
+        }}
+        onKeepLocal={() => resolveConflict('keepLocal')}
+        onKeepCloud={() => resolveConflict('keepCloud')}
+        onCancel={() => {
+          /* leave status as 'conflict', ask again next sync */
+        }}
+      />
     </CardThemed>
   )
 }
@@ -91,8 +136,7 @@ function SlotRow({ index }: { index: number }) {
   const database = databases[index]
   const cloudSyncMeta = useDataEntryBase(database.cloudSyncMeta)
   const isActive = database === activeDatabase
-  const { status, meta, conflictInfo, setEnabled, syncNow, resolveConflict } =
-    useContext(CloudSyncContext)
+  const { status, meta, setEnabled, syncNow } = useContext(CloudSyncContext)
 
   const onToggle = useCallback(
     (checked: boolean) => {
@@ -153,28 +197,6 @@ function SlotRow({ index }: { index: number }) {
         <Button size="small" onClick={() => syncNow()}>
           {t('cloudSyncCard.syncNow')}
         </Button>
-      )}
-      {isActive && (
-        <ConflictDialog
-          open={status === 'conflict'}
-          conflict={conflictInfo}
-          labels={{
-            title: t('cloudSyncCard.conflictDialog.title'),
-            desc: t('cloudSyncCard.conflictDialog.desc'),
-            local: t('cloudSyncCard.conflictDialog.local'),
-            cloud: t('cloudSyncCard.conflictDialog.cloud'),
-            lastModified: t('cloudSyncCard.conflictDialog.lastModified'),
-            size: t('cloudSyncCard.conflictDialog.size'),
-            keepLocal: t('cloudSyncCard.conflictDialog.keepLocal'),
-            keepCloud: t('cloudSyncCard.conflictDialog.keepCloud'),
-            cancel: t('cloudSyncCard.conflictDialog.cancel'),
-          }}
-          onKeepLocal={() => resolveConflict('keepLocal')}
-          onKeepCloud={() => resolveConflict('keepCloud')}
-          onCancel={() => {
-            /* leave status as 'conflict', ask again next sync */
-          }}
-        />
       )}
     </Box>
   )

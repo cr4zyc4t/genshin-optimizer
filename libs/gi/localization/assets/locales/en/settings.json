@@ -76,6 +76,7 @@
     "signIn": "Sign in with Google",
     "signingIn": "Signing in…",
     "signOut": "Sign out",
+    "signedInAs": "Signed in as {{email}}",
     "enableToggle": "Sync this database",
     "syncNow": "Sync now",
     "debounceLabel": "Auto-upload delay (seconds)",

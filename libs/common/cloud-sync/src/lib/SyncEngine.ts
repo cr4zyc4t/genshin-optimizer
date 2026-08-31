@@ -61,9 +61,26 @@ export class SyncEngine {
         remoteSize?: number | undefined
       }
     | undefined
+  /** Bound `online` event handler, stored so it can be removed in `dispose()`. */
+  private readonly onOnline: () => void
 
   constructor(deps: SyncEngineDeps) {
     this.deps = deps
+    // M3 (design doc §12): when the browser comes back online, reset the retry counter and
+    // immediately retry if the last attempt failed (status === 'error'). This handles the
+    // case where MAX_UPLOAD_RETRIES was exhausted while offline — without this listener the
+    // engine would sit in 'error' indefinitely until the user manually triggers a sync.
+    this.onOnline = () => {
+      if (this.status === 'error') {
+        this.retryCount = 0
+        this.upload().catch(() => {
+          // error surfaced via status; scheduleRetry() will handle further retries
+        })
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', this.onOnline)
+    }
   }
 
   getStatus(): SyncStatus {
@@ -105,6 +122,9 @@ export class SyncEngine {
       this.retryTimer = undefined
     }
     this.listeners.clear()
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.onOnline)
+    }
   }
 
   /** Call whenever `dbMeta.lastEdit` changes for this slot — (re)starts the upload debounce. */
@@ -123,6 +143,10 @@ export class SyncEngine {
   flushPendingUpload(): void {
     this.debouncer.flush()
   }
+  // TODO (M4, design doc §8): add a `visibilitychange`/`beforeunload` listener that calls
+  // flushPendingUpload() so pending changes are uploaded when the tab is closed or hidden.
+  // Drive's API doesn't support sendBeacon semantics so this is best-effort only — do NOT
+  // block the beforeunload event. Deferred to Phase 2.
 
   private async resolveRemoteFileId(): Promise<string | undefined> {
     const meta = this.deps.getMeta()
@@ -134,8 +158,17 @@ export class SyncEngine {
     return found
   }
 
-  /** Uploads local data, refusing to overwrite if the remote changed since our last sync. */
-  private async upload(): Promise<void> {
+  /**
+   * Uploads local data, refusing to overwrite if the remote changed since our last sync.
+   *
+   * @param knownRemoteMeta - Already-fetched remote file metadata, if the caller (e.g.
+   *   `syncNow`) already has it. Skips the redundant `getFileMetadata` call in that case.
+   */
+  private async upload(
+    knownRemoteMeta?: Awaited<
+      ReturnType<DriveClient['getFileMetadata']>
+    >
+  ): Promise<void> {
     if (!this.deps.getMeta().enabled) return
     this.setStatus('syncing')
     try {
@@ -159,8 +192,11 @@ export class SyncEngine {
         return
       }
 
+      // Use the already-fetched metadata when available to avoid a redundant Drive API call.
       const remoteMeta =
-        await this.deps.driveClient.getFileMetadata(remoteFileId)
+        knownRemoteMeta !== undefined
+          ? knownRemoteMeta
+          : await this.deps.driveClient.getFileMetadata(remoteFileId)
       const meta = this.deps.getMeta()
       if (
         remoteMeta &&
@@ -238,7 +274,8 @@ export class SyncEngine {
       return 'noop'
     }
     if (localChanged && !remoteChanged) {
-      await this.upload()
+      // Pass already-fetched remoteMeta so upload() skips the redundant getFileMetadata call.
+      await this.upload(remoteMeta)
       return 'uploaded'
     }
     if (!localChanged && remoteChanged && remoteMeta) {
@@ -287,7 +324,7 @@ export class SyncEngine {
       await this.downloadAndApply(
         conflict.remoteFileId,
         conflict.remoteModifiedTime,
-        undefined
+        conflict.remoteSize
       )
       return
     }

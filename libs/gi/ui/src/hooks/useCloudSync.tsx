@@ -51,6 +51,12 @@ export function useCloudSync(
 
   const deps = useMemo<SyncEngineDeps>(
     () => ({
+      // `auth.getAccessToken` is intentionally called lazily inside the closure (not captured
+      // as a snapshot), so it always uses whatever token `GoogleAuth` holds at upload time.
+      // auth.getAccessToken must NOT be in the dep array — it's a new function reference on
+      // every render of useGoogleAuth and would cause the SyncEngine to be torn down and
+      // rebuilt on every auth status change (signing-in → signed-in, etc.), losing pending
+      // debounce state. Only structural deps — database identity and debounce interval — belong here.
       driveClient: new DriveClient(() => auth.getAccessToken()),
       fileName: `gi-slot-${database.dbIndex}.json`,
       getMeta: () => database.cloudSyncMeta.get(),
@@ -60,7 +66,8 @@ export function useCloudSync(
       applySnapshot: (json) => applyCloudSnapshot(database, setDatabase, json),
       getDebounceMs: () => settings.debounceMs,
     }),
-    [database, setDatabase, settings.debounceMs, auth.getAccessToken]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [database, setDatabase, settings.debounceMs]
   )
 
   const {
@@ -93,7 +100,11 @@ export function useCloudSync(
       configured: !!googleClientId,
       authStatus: auth.status,
       signIn: () => auth.signIn(),
-      signOut: auth.signOut,
+      // M1 fix: clear persisted account info on sign-out so stale email doesn't survive reload.
+      signOut: () => {
+        auth.signOut()
+        setSettings({ account: undefined })
+      },
       status,
       meta,
       conflictInfo,

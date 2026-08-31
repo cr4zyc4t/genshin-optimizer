@@ -3,10 +3,12 @@
  *
  * - `GOOGLE_CLIENT_ID` is the public (non-secret) Google OAuth Client ID, registered by the
  *   repo owner in Google Cloud Console for this app's production origin(s) + `localhost` for
- *   dev. Supplied via `NX_GOOGLE_CLIENT_ID` in `apps/frontend/.env` (same `NX_`-prefixed
- *   `process.env` convention already used for `NX_GA_TRACKINGID`/`NX_URL_*` in this app — see
- *   `apps/frontend/src/main.tsx`). If unset, the Cloud Sync card hides itself entirely
- *   (`CloudSyncContext.configured === false`).
+ *   dev. Set `NX_GOOGLE_CLIENT_ID` in `apps/frontend/.env` — the same `NX_`-prefixed
+ *   `process.env` convention used by every other env var in this app (e.g. `NX_GA_TRACKINGID`,
+ *   `NX_URL_*`). The Nx CLI calls `loadRootEnvFiles()` (via dotenv) before any executor runs,
+ *   so `.env` values are in `process.env` by the time `vite.config.mts` evaluates the
+ *   `'process.env': process.env` define — which then inlines the whole object into the bundle.
+ *   If unset, the Cloud Sync card hides itself entirely (`CloudSyncContext.configured === false`).
  * - `DEBOUNCE_DEFAULT_MS` is the default auto-upload debounce interval (seconds shown in the
  *   UI). Only the default is build-time configurable — the min/max bounds are fixed in
  *   `@genshin-optimizer/common/cloud-sync`'s `DEBOUNCE_MIN_MS`/`DEBOUNCE_MAX_MS` constants.
