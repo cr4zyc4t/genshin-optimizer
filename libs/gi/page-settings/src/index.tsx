@@ -1,6 +1,6 @@
 import { LocalStorageUsageCard } from '@genshin-optimizer/common/react-util'
 import { CardThemed } from '@genshin-optimizer/common/ui'
-import { DatabaseCard } from '@genshin-optimizer/gi/ui'
+import { CloudSyncCard, DatabaseCard } from '@genshin-optimizer/gi/ui'
 import { CardContent, Divider, Grid, Typography } from '@mui/material'
 import ReactGA from 'react-ga4'
 import { Trans, useTranslation } from 'react-i18next'
@@ -38,6 +38,7 @@ export default function PageSettings() {
           </Grid>
         </Grid>
         <DatabaseCard />
+        <CloudSyncCard />
       </CardContent>
     </CardThemed>
   )

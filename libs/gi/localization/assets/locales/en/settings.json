@@ -69,5 +69,37 @@
       "delCharNotInImport": "Assume the import is your full inventory of characters. Characters in the GO Inventory that don't exist in the import will be deleted.",
       "keepCharNotInImport": "Assume the import is a partial inventory of characters. Nothing will be deleted."
     }
+  },
+  "cloudSyncCard": {
+    "title": "Cloud Sync (Google Drive)",
+    "desc": "Back up this save slot to your own Google Drive account so it survives browser data clearing and can be carried between devices. Genshin Optimizer can only see files it creates itself (Drive's \"drive.file\" scope) — it never has access to the rest of your Drive.",
+    "signIn": "Sign in with Google",
+    "signingIn": "Signing in…",
+    "signOut": "Sign out",
+    "enableToggle": "Sync this database",
+    "syncNow": "Sync now",
+    "debounceLabel": "Auto-upload delay (seconds)",
+    "status": {
+      "signedOut": "Not signed in",
+      "disabled": "Not synced",
+      "idle": "Not synced",
+      "dirty": "Pending changes…",
+      "syncing": "Syncing…",
+      "synced": "Synced {{time}}",
+      "conflict": "Sync conflict — action needed",
+      "error": "Sync failed, will retry"
+    },
+    "inactiveSlot": "Will sync when this slot is active",
+    "conflictDialog": {
+      "title": "Sync conflict",
+      "desc": "This save slot changed both locally and on Google Drive since the last sync. Choose which copy to keep — the other side will be overwritten.",
+      "local": "Local (this device)",
+      "cloud": "Cloud (Google Drive)",
+      "lastModified": "Last modified",
+      "size": "Size",
+      "keepLocal": "Keep Local",
+      "keepCloud": "Keep Cloud",
+      "cancel": "Cancel"
+    }
   }
 }

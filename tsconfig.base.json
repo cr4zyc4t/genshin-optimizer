@@ -27,6 +27,12 @@
     "paths": {
       "@genshin-optimizer/biome": ["./plugin/biome/src/index.ts"],
       "@genshin-optimizer/common/ad": ["./libs/common/ad/src/index.ts"],
+      "@genshin-optimizer/common/cloud-sync": [
+        "./libs/common/cloud-sync/src/index.ts"
+      ],
+      "@genshin-optimizer/common/cloud-sync-ui": [
+        "./libs/common/cloud-sync-ui/src/index.ts"
+      ],
       "@genshin-optimizer/common/database": [
         "./libs/common/database/src/index.ts"
       ],

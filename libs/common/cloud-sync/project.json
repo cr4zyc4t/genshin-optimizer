@@ -1,0 +1,16 @@
+{
+  "name": "common-cloud-sync",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/common/cloud-sync/src",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "configurations": {
+        "ci": {
+          "coverage": true
+        }
+      }
+    }
+  },
+  "tags": []
+}

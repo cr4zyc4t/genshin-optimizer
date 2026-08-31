@@ -4,9 +4,11 @@ import { DatabaseContext } from '@genshin-optimizer/gi/db-ui'
 import '@genshin-optimizer/gi/i18n' // import to load translations
 import { theme } from '@genshin-optimizer/gi/theme'
 import {
+  CloudSyncContext,
   GOAdWrapper,
   SillyContext,
   SnowContext,
+  useCloudSync,
   useSilly,
   useSnow,
 } from '@genshin-optimizer/gi/ui'
@@ -29,6 +31,10 @@ import {
   AdRailSticky,
 } from '@genshin-optimizer/common/ad'
 import { useDatabases } from '@genshin-optimizer/common/database-ui'
+import {
+  DEBOUNCE_DEFAULT_MS,
+  GOOGLE_CLIENT_ID,
+} from '../cloudSyncConfig'
 import ErrorBoundary from './ErrorBoundary'
 import Footer from './Footer'
 import Header from './Header'
@@ -124,6 +130,12 @@ function App() {
   )
   const SillyContextObj = useSilly()
   const SnowContextObj = useSnow()
+  const CloudSyncContextObj = useCloudSync(
+    database,
+    setDatabase,
+    GOOGLE_CLIENT_ID,
+    DEBOUNCE_DEFAULT_MS
+  )
   return (
     <StyledEngineProvider injectFirst>
       {/* https://mui.com/guides/interoperability/#css-injection-order-2 */}
@@ -132,14 +144,16 @@ function App() {
         <SillyContext.Provider value={SillyContextObj}>
           <SnowContext.Provider value={SnowContextObj}>
             <DatabaseContext.Provider value={dbContextObj}>
-              <ErrorBoundary>
-                <HashRouter basename="/">
-                  <AdBlockContextWrapper>
-                    <Content />
-                  </AdBlockContextWrapper>
-                  <ScrollTop />
-                </HashRouter>
-              </ErrorBoundary>
+              <CloudSyncContext.Provider value={CloudSyncContextObj}>
+                <ErrorBoundary>
+                  <HashRouter basename="/">
+                    <AdBlockContextWrapper>
+                      <Content />
+                    </AdBlockContextWrapper>
+                    <ScrollTop />
+                  </HashRouter>
+                </ErrorBoundary>
+              </CloudSyncContext.Provider>
             </DatabaseContext.Provider>
           </SnowContext.Provider>
         </SillyContext.Provider>

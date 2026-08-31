@@ -3,6 +3,7 @@ import { Database, SandboxStorage } from '@genshin-optimizer/common/database'
 import { compressToB64Gzip } from '@genshin-optimizer/common/util'
 import type { GenderKey } from '@genshin-optimizer/gi/consts'
 import type { IGOOD } from '@genshin-optimizer/gi/good'
+import { CloudSyncMetaEntry } from './DataEntries/CloudSyncMetaEntry'
 import { DBMetaEntry } from './DataEntries/DBMetaEntry'
 import { DisplayArchiveEntry } from './DataEntries/DisplayArchiveEntry'
 import { DisplayArtifactEntry } from './DataEntries/DisplayArtifactEntry'
@@ -36,6 +37,7 @@ export class ArtCharDatabase extends Database {
   teams: TeamDataManager
 
   dbMeta: DBMetaEntry
+  cloudSyncMeta: CloudSyncMetaEntry
   displayWeapon: DisplayWeaponEntry
   displayArtifact: DisplayArtifactEntry
   displayCharacter: DisplayCharacterEntry
@@ -83,6 +85,7 @@ export class ArtCharDatabase extends Database {
 
     // Handle DataEntries
     this.dbMeta = new DBMetaEntry(this)
+    this.cloudSyncMeta = new CloudSyncMetaEntry(this)
     this.displayWeapon = new DisplayWeaponEntry(this)
     this.displayArtifact = new DisplayArtifactEntry(this)
     this.displayCharacter = new DisplayCharacterEntry(this)
@@ -95,6 +98,9 @@ export class ArtCharDatabase extends Database {
 
     // IMPORTANT: do not follow changes made to dbMeta,
     // as it would end in infinite loop
+    // IMPORTANT: do not follow changes made to cloudSyncMeta either -
+    // it is sync bookkeeping, not user data, and following it would
+    // cause every sync to mark the slot dirty again.
     this.chars.followAny(updateLastEdit)
     this.arts.followAny(updateLastEdit)
     this.weapons.followAny(updateLastEdit)
@@ -129,6 +135,7 @@ export class ArtCharDatabase extends Database {
   get dataEntries() {
     return [
       this.dbMeta,
+      this.cloudSyncMeta,
       this.displayWeapon,
       this.displayArtifact,
       this.displayCharacter,
