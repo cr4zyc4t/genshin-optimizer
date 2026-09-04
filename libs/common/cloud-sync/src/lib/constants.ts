@@ -8,8 +8,8 @@
 export const DEBOUNCE_MIN_MS = 5_000
 export const DEBOUNCE_MAX_MS = 120_000
 
-/** OAuth scope requested for Google Drive access — least-privilege, app-created-files only. */
-export const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
+/** OAuth scope requested for Google Drive access — requires appdata scope to use appDataFolder special space. */
+export const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
 
 /** Google Identity Services script, loaded on-demand by {@link GoogleAuth}. */
 export const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
