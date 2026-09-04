@@ -31,10 +31,7 @@ import {
   AdRailSticky,
 } from '@genshin-optimizer/common/ad'
 import { useDatabases } from '@genshin-optimizer/common/database-ui'
-import {
-  DEBOUNCE_DEFAULT_MS,
-  GOOGLE_CLIENT_ID,
-} from '../cloudSyncConfig'
+import { DEBOUNCE_DEFAULT_MS, GOOGLE_CLIENT_ID } from '../cloudSyncConfig'
 import ErrorBoundary from './ErrorBoundary'
 import Footer from './Footer'
 import Header from './Header'

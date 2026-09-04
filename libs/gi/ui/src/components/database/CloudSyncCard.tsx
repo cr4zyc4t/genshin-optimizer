@@ -41,7 +41,6 @@ export function CloudSyncCard() {
     resolveConflict,
   } = useContext(CloudSyncContext)
 
-
   if (!configured) return null
 
   return (
@@ -94,6 +93,8 @@ export function CloudSyncCard() {
             />
           )}
         </Box>
+        {/* Active-slot summary: colour-coded status chip + last-synced time */}
+        {authStatus === 'signed-in' && <ActiveSlotStatus />}
         {authStatus === 'signed-in' && (
           <Grid container spacing={2} columns={{ xs: 1, md: 2 }}>
             {range(0, 3).map((i) => (
@@ -130,6 +131,58 @@ export function CloudSyncCard() {
   )
 }
 
+/** Colour-coded chip + last-synced timestamp for the currently active slot. */
+function ActiveSlotStatus() {
+  const { t } = useTranslation(['settings'])
+  const { database } = useContext(DatabaseContext)
+  const cloudSyncMeta = useDataEntryBase(database.cloudSyncMeta)
+  const { status, meta } = useContext(CloudSyncContext)
+
+  if (
+    status === 'disabled' ||
+    status === 'signed-out' ||
+    !cloudSyncMeta.enabled
+  )
+    return null
+
+  const chipColor = (() => {
+    if (status === 'synced') return 'success' as const
+    if (status === 'error' || status === 'conflict') return 'error' as const
+    if (status === 'dirty' || status === 'syncing') return 'warning' as const
+    if (
+      meta?.lastSyncedRemoteModifiedTime ||
+      cloudSyncMeta.lastSyncedRemoteModifiedTime
+    )
+      return 'success' as const
+    return 'default' as const
+  })()
+
+  const lastSyncTime =
+    meta?.lastSyncedRemoteModifiedTime ||
+    cloudSyncMeta.lastSyncedRemoteModifiedTime
+
+  const statusLabel = (() => {
+    if (status === 'dirty') return t('cloudSyncCard.status.dirty')
+    if (status === 'syncing') return t('cloudSyncCard.status.syncing')
+    if (status === 'conflict') return t('cloudSyncCard.status.conflict')
+    if (status === 'error') return t('cloudSyncCard.status.error')
+    if (lastSyncTime)
+      return t('cloudSyncCard.status.synced', {
+        time: new Date(lastSyncTime).toLocaleString(),
+      })
+    return t('cloudSyncCard.status.idle')
+  })()
+
+  return (
+    <Box display="flex" alignItems="center" gap={1}>
+      <Typography variant="body2" color="text.secondary">
+        {t('cloudSyncCard.activeSyncStatus')}
+      </Typography>
+      <Chip size="small" color={chipColor} label={statusLabel} />
+    </Box>
+  )
+}
+
 function SlotRow({ index }: { index: number }) {
   const { t } = useTranslation(['settings'])
   const { databases, database: activeDatabase } = useContext(DatabaseContext)
@@ -146,16 +199,28 @@ function SlotRow({ index }: { index: number }) {
     [isActive, setEnabled, database]
   )
 
+  const lastSyncTime = isActive
+    ? meta?.lastSyncedRemoteModifiedTime ||
+      cloudSyncMeta.lastSyncedRemoteModifiedTime
+    : cloudSyncMeta.lastSyncedRemoteModifiedTime
+
   const statusText = (() => {
     if (!cloudSyncMeta.enabled) return t('cloudSyncCard.status.disabled')
-    if (!isActive) return t('cloudSyncCard.inactiveSlot')
+    if (!isActive) {
+      if (lastSyncTime) {
+        return `${t('cloudSyncCard.status.synced', {
+          time: new Date(lastSyncTime).toLocaleString(),
+        })} (${t('cloudSyncCard.inactiveSlot')})`
+      }
+      return t('cloudSyncCard.inactiveSlot')
+    }
     if (status === 'dirty') return t('cloudSyncCard.status.dirty')
     if (status === 'syncing') return t('cloudSyncCard.status.syncing')
     if (status === 'conflict') return t('cloudSyncCard.status.conflict')
     if (status === 'error') return t('cloudSyncCard.status.error')
-    if (status === 'synced' && meta?.lastSyncedRemoteModifiedTime)
+    if (lastSyncTime)
       return t('cloudSyncCard.status.synced', {
-        time: new Date(meta.lastSyncedRemoteModifiedTime).toLocaleString(),
+        time: new Date(lastSyncTime).toLocaleString(),
       })
     return t('cloudSyncCard.status.idle')
   })()

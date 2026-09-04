@@ -1,3 +1,5 @@
 export * from './CloudSyncCard'
 export * from './DatabaseCard'
 export * from './UploadCard'
+export { CloudSyncStatusIcon } from '@genshin-optimizer/common/cloud-sync-ui'
+export type { CloudSyncStatusIconProps } from '@genshin-optimizer/common/cloud-sync-ui'

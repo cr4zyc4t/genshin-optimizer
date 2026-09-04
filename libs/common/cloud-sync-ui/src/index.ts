@@ -1,4 +1,5 @@
 export * from './lib/CloudSyncContext'
+export * from './lib/CloudSyncStatusIcon'
 export * from './lib/ConflictDialog'
 export * from './lib/SignInButton'
 export * from './lib/useCloudSyncSettings'

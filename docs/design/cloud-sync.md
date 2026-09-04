@@ -206,7 +206,7 @@ New `CloudSyncCard` (per game, in `libs/{gi,sr,zzz}/ui/src/components/...`), pla
 | Path | Change |
 |---|---|
 | `libs/common/cloud-sync/*` | **New lib**: `GoogleAuth`, `DriveClient`, `SyncEngine`, debounce util, types. |
-| `libs/common/cloud-sync-ui/*` | **New lib**: `SignInButton`, `CloudSyncCard`, `ConflictDialog`, `CloudSyncContext`, `useCloudSyncSettings` (generic, parameterized by `storageKey`), hooks (`useGoogleAuth`, `useSyncEngine`). |
+| `libs/common/cloud-sync-ui/*` | **New lib**: `SignInButton`, `CloudSyncCard`, `ConflictDialog`, `CloudSyncContext`, `CloudSyncStatusIcon` (top-bar status notification icon), `useCloudSyncSettings` (generic, parameterized by `storageKey`), hooks (`useGoogleAuth`, `useSyncEngine`). |
 | `libs/gi/db/src/Database/DataEntries/CloudSyncMetaEntry.ts` (+ SR/ZZZ equivalents) | **New**: per-slot `CloudSyncMeta` storage entry, following the existing `DBMetaEntry` pattern. |
 | `libs/gi/ui/src/hooks/useCloudSync.tsx` | **New**: GI-specific wiring hook — only `applyCloudSnapshot` is game-specific; everything else is structural boilerplate SR/ZZZ will replicate. |
 | `libs/gi/ui/src/hooks/useCloudSyncSettings.tsx` | **Thin wrapper** re-exporting `useCloudSyncSettings('gi_cloudSyncSettings', …)` from `common/cloud-sync-ui`. SR/ZZZ use `'sr_cloudSyncSettings'` / `'zzz_cloudSyncSettings'`. |

@@ -4,7 +4,7 @@ import { Tally } from '@genshin-optimizer/common/ui'
 import { shouldShowDevComponents } from '@genshin-optimizer/common/util'
 import { useDatabase, useDBMeta } from '@genshin-optimizer/gi/db-ui'
 import { FlowerIcon } from '@genshin-optimizer/gi/svgicons'
-import { SillyContext } from '@genshin-optimizer/gi/ui'
+import { CloudSyncStatusIcon, SillyContext } from '@genshin-optimizer/gi/ui'
 import ArticleIcon from '@mui/icons-material/Article'
 import BookIcon from '@mui/icons-material/Book'
 import ConstructionIcon from '@mui/icons-material/Construction'
@@ -31,7 +31,7 @@ import {
   useTheme,
 } from '@mui/material'
 import type { ReactElement, ReactNode } from 'react'
-import { Suspense, useContext, useState } from 'react'
+import { Suspense, useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link as RouterLink, useMatch } from 'react-router-dom'
 import go_icon from './go_icon.png'
@@ -167,18 +167,42 @@ function DesktopHeader({
 }) {
   const theme = useTheme()
   const isXL = useMediaQuery(theme.breakpoints.up('xl'))
-  const { t } = useTranslation('ui')
+  const { t } = useTranslation(['ui', 'settings'])
   const { silly } = useContext(SillyContext)
+
+  const syncLabels = useMemo(
+    () => ({
+      syncing: t('settings:cloudSyncCard.status.syncing'),
+      synced: (time?: string) =>
+        time
+          ? t('settings:cloudSyncCard.status.synced', { time })
+          : t('settings:cloudSyncCard.status.idle'),
+      error: t('settings:cloudSyncCard.status.error'),
+      conflict: t('settings:cloudSyncCard.status.conflict'),
+      dirty: t('settings:cloudSyncCard.status.dirty'),
+      disabled: t('settings:cloudSyncCard.status.disabled'),
+      idle: t('settings:cloudSyncCard.status.idle'),
+      signedOut: t('settings:cloudSyncCard.status.signedOut'),
+    }),
+    [t]
+  )
+
   return (
     <AppBar
       position="static"
-      sx={{ bgcolor: 'neutral900.main' }}
+      sx={{
+        bgcolor: 'neutral900.main',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}
       elevation={0}
       id={anchor}
     >
       <Tabs
         value={currentTab}
         sx={(theme) => ({
+          flexGrow: 1,
           '& .MuiTab-root': {
             p: 1,
             minWidth: 'auto',
@@ -249,6 +273,13 @@ function DesktopHeader({
           )
         })}
       </Tabs>
+      <Box sx={{ pr: 1.5, display: 'flex', alignItems: 'center' }}>
+        <CloudSyncStatusIcon
+          component={RouterLink}
+          to="/setting"
+          labels={syncLabels}
+        />
+      </Box>
     </AppBar>
   )
 }
@@ -277,8 +308,26 @@ function MobileHeader({
     setMobileOpen(!mobileOpen)
   }
 
-  const { t } = useTranslation('ui')
+  const { t } = useTranslation(['ui', 'settings'])
   const { silly } = useContext(SillyContext)
+
+  const syncLabels = useMemo(
+    () => ({
+      syncing: t('settings:cloudSyncCard.status.syncing'),
+      synced: (time?: string) =>
+        time
+          ? t('settings:cloudSyncCard.status.synced', { time })
+          : t('settings:cloudSyncCard.status.idle'),
+      error: t('settings:cloudSyncCard.status.error'),
+      conflict: t('settings:cloudSyncCard.status.conflict'),
+      dirty: t('settings:cloudSyncCard.status.dirty'),
+      disabled: t('settings:cloudSyncCard.status.disabled'),
+      idle: t('settings:cloudSyncCard.status.idle'),
+      signedOut: t('settings:cloudSyncCard.status.signedOut'),
+    }),
+    [t]
+  )
+
   return (
     <>
       <AppBar
@@ -392,6 +441,12 @@ function MobileHeader({
             ) : undefined}
           </Button>
           <Box flexGrow={1} />
+          <CloudSyncStatusIcon
+            component={RouterLink}
+            to="/setting"
+            labels={syncLabels}
+            sx={{ mr: 1 }}
+          />
           <IconButton
             color="inherit"
             aria-label="open drawer"

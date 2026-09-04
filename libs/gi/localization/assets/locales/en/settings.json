@@ -90,6 +90,7 @@
       "conflict": "Sync conflict — action needed",
       "error": "Sync failed, will retry"
     },
+    "activeSyncStatus": "Active database sync status:",
     "inactiveSlot": "Will sync when this slot is active",
     "conflictDialog": {
       "title": "Sync conflict",

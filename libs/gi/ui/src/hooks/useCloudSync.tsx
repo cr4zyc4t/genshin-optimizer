@@ -48,16 +48,14 @@ export function useCloudSync(
 ): CloudSyncContextObj {
   const { settings, setSettings } = useCloudSyncSettings(defaultDebounceMs)
   const auth = useGoogleAuth(googleClientId)
+  const authRef = useRef(auth)
+  authRef.current = auth
 
   const deps = useMemo<SyncEngineDeps>(
     () => ({
-      // `auth.getAccessToken` is intentionally called lazily inside the closure (not captured
-      // as a snapshot), so it always uses whatever token `GoogleAuth` holds at upload time.
-      // auth.getAccessToken must NOT be in the dep array — it's a new function reference on
-      // every render of useGoogleAuth and would cause the SyncEngine to be torn down and
-      // rebuilt on every auth status change (signing-in → signed-in, etc.), losing pending
-      // debounce state. Only structural deps — database identity and debounce interval — belong here.
-      driveClient: new DriveClient(() => auth.getAccessToken()),
+      // `auth.getAccessToken` is called lazily via ref inside the closure, so it always uses
+      // whatever token `GoogleAuth` holds at upload time without rebuilding SyncEngine.
+      driveClient: new DriveClient(() => authRef.current.getAccessToken()),
       fileName: `gi-slot-${database.dbIndex}.json`,
       getMeta: () => database.cloudSyncMeta.get(),
       setMeta: (partial) => database.cloudSyncMeta.set(partial),
@@ -66,7 +64,6 @@ export function useCloudSync(
       applySnapshot: (json) => applyCloudSnapshot(database, setDatabase, json),
       getDebounceMs: () => settings.debounceMs,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [database, setDatabase, settings.debounceMs]
   )
 
@@ -101,8 +98,6 @@ export function useCloudSync(
   // long as the browser still holds a valid Google session cookie. If that also fails (offline,
   // session expired), we stay in error state — the user sees the error indicator and can
   // manually click "Sign in" again (spec §6/§12).
-  const authRef = useRef(auth)
-  authRef.current = auth
   useEffect(() => {
     if (status !== 'error') return
     if (authRef.current.status !== 'signed-in') return
