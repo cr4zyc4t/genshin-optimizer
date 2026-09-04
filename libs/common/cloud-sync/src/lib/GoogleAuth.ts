@@ -37,6 +37,22 @@ export class GoogleAuth {
 
   constructor(clientId: string) {
     this.clientId = clientId
+    if (typeof sessionStorage !== 'undefined') {
+      const cached = sessionStorage.getItem(`gi_cloudSyncToken_${clientId}`)
+      if (cached) {
+        try {
+          const { token, expiresAt } = JSON.parse(cached)
+          if (Date.now() < expiresAt) {
+            this.accessToken = token
+            this.status = 'signed-in'
+          } else {
+            sessionStorage.removeItem(`gi_cloudSyncToken_${clientId}`)
+          }
+        } catch {
+          sessionStorage.removeItem(`gi_cloudSyncToken_${clientId}`)
+        }
+      }
+    }
   }
 
   getStatus(): GoogleAuthStatus {
@@ -116,6 +132,18 @@ export class GoogleAuth {
         }
         this.accessToken = response.access_token
         this.setStatus('signed-in')
+        
+        if (typeof sessionStorage !== 'undefined') {
+          const expiresIn = response.expires_in ?? 3599
+          sessionStorage.setItem(
+            `gi_cloudSyncToken_${this.clientId}`,
+            JSON.stringify({
+              token: response.access_token,
+              expiresAt: Date.now() + expiresIn * 1000,
+            })
+          )
+        }
+        
         resolve()
       }
       tokenClient.error_callback = (error: GoogleTokenClientError) => {
@@ -134,5 +162,8 @@ export class GoogleAuth {
     }
     this.accessToken = undefined
     this.setStatus('signed-out')
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(`gi_cloudSyncToken_${this.clientId}`)
+    }
   }
 }

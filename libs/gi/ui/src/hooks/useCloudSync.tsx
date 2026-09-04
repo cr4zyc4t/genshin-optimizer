@@ -1,11 +1,11 @@
-import { SandboxStorage } from '@genshin-optimizer/common/database'
 import type { SyncEngineDeps } from '@genshin-optimizer/common/cloud-sync'
 import { DriveClient } from '@genshin-optimizer/common/cloud-sync'
+import type { CloudSyncContextObj } from '@genshin-optimizer/common/cloud-sync-ui'
 import {
   useGoogleAuth,
   useSyncEngine,
 } from '@genshin-optimizer/common/cloud-sync-ui'
-import type { CloudSyncContextObj } from '@genshin-optimizer/common/cloud-sync-ui'
+import { SandboxStorage } from '@genshin-optimizer/common/database'
 import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
 import { useEffect, useMemo, useRef } from 'react'
 import { useCloudSyncSettings } from './useCloudSyncSettings'
@@ -109,6 +109,20 @@ export function useCloudSync(
         // The user will be prompted to re-authenticate manually.
       })
   }, [status])
+
+  // On mount, if we have a persisted account but are currently signed out (e.g. browser refresh),
+  // attempt to silently sign in to restore the session.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run on startup only
+  useEffect(() => {
+    if (settings.account && authRef.current.status === 'signed-out') {
+      authRef.current
+        .signIn(/* promptless= */ true)
+        .then(() => actionsRef.current.syncNow())
+        .catch(() => {
+          // If silent sign-in fails on load, they remain signed out and must click Sign In manually.
+        })
+    }
+  }, [])
 
   return useMemo<CloudSyncContextObj>(
     () => ({

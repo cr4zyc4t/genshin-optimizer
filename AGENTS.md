@@ -37,6 +37,7 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs `lint`, `test`, `
 - Code style is enforced by Biome, not Prettier/ESLint: single quotes, no semicolons, 2-space indent, 80-col width, trailing commas. Don't hand-format against these rules — run `nx run <project>:format`.
 - Tests are colocated with source as `*.test.ts` or `*.spec.ts` (both conventions exist), run with Vitest.
 - Generated files (`*_gen.json`, `libs/gi/stats/Data/**`, locale JSON under `localization/assets/locales`) are build outputs of `gen-file` — don't hand-edit them; change the generator instead.
+- Whenever there is source code changes that affect design, MUST create/update documents to record it.
 
 ## Common pitfalls
 

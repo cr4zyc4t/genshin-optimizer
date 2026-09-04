@@ -66,10 +66,10 @@ New libraries mirror the existing `common/database` + `common/database-ui` split
 ## 6. Authentication
 
 - Use **Google Identity Services (GIS)** token client (`google.accounts.oauth2.initTokenClient`), loaded via the standard `https://accounts.google.com/gsi/client` script — this is the current Google-recommended replacement for the deprecated `gapi.auth2`.
-- Scope requested: `https://www.googleapis.com/auth/drive.file` only.
+- Scope requested: `https://www.googleapis.com/auth/drive.appdata` (required to use `appDataFolder`).
 - No client secret is needed (public SPA flow); a **Google Cloud OAuth Client ID** (Web application type) must be registered per site origin (`frzyc.github.io/genshin-optimizer`, `frzyc.github.io/zenless-optimizer`, plus `localhost` for dev). **Confirmed** (§16.4): the repo owner creates/owns the Google Cloud project and registers these Client ID(s) as a one-time external setup task; this PR only needs to consume the resulting Client ID as build-time config (§6.1). End users never interact with Google Cloud Console directly — they only see the standard Google account chooser + consent screen when they click **Sign in with Google**, same as any other "Sign in with Google" button on the web.
 - Token handling:
-  - Access token kept **in memory only** (React context/module state), never written to `localStorage`/`DBStorage`. It's short-lived (~1h) and re-requested silently (via GIS `prompt: ''`) when a Drive call returns an auth error — implemented as a `useEffect` in `useCloudSync` that watches `SyncEngine` status; see §17.1.
+  - Access token cached in **`sessionStorage`** with its 1-hour expiration. This allows the session to survive a browser refresh without relying on flaky silent re-auth (`prompt: ''`), but still guarantees the token is discarded when the tab is closed. If the token expires while the tab is open, it is re-requested silently when a Drive call returns an auth error — implemented as a `useEffect` in `useCloudSync` that watches `SyncEngine` status; see §17.1 and §17.3.
   - A lightweight "is connected" boolean + the Google account email/avatar (for display) is persisted so the Settings screen can show "Signed in as ___" without a network round-trip. **Implementation note**: this is stored in plain `localStorage` (key `gi_cloudSyncSettings`) rather than `DBStorage` — see §17.2 for rationale.
   - **Sign out** revokes the token (`google.accounts.oauth2.revoke`) and clears the persisted "is connected" flag.
 
@@ -188,8 +188,8 @@ New `CloudSyncCard` (per game, in `libs/{gi,sr,zzz}/ui/src/components/...`), pla
 
 ## 13. Security considerations (OWASP-relevant)
 
-- Least-privilege scope (`drive.file`) — the app can never read/write files it didn't create.
-- Access tokens never persisted to disk/localStorage; only kept in memory for the session.
+- Scope (`drive.appdata`) — limits access to the hidden `appDataFolder` without exposing the user's main Drive files.
+- Access tokens stored in `sessionStorage` (cleared on tab close), rather than `localStorage`, mitigating long-term XSS risk while allowing persistence across page refreshes.
 - All Drive API calls made directly from the browser to `https://www.googleapis.com` over HTTPS — no proxy/backend involved, so there's no new server-side attack surface.
 - OAuth Client ID is a public, non-secret value (safe to ship in the client bundle, standard for SPA OAuth); it must still be registered with the exact list of authorized JavaScript origins in Google Cloud Console to prevent other sites from using it.
 - Add `https://accounts.google.com` (script) and `https://www.googleapis.com` (fetch) to CSP `script-src`/`connect-src` if the app defines a Content-Security-Policy.
@@ -246,3 +246,11 @@ If the silent re-auth itself fails (session expired, offline), the engine stays 
 **Rationale**: `DBStorage` in this codebase is per-slot — each `ArtCharDatabase` owns its own storage instance keyed to a `dbIndex`. There is no shared cross-slot `DBStorage`. Storing global settings (account email, debounce interval) there would require either picking an arbitrary slot as the "global" home (fragile) or adding a new cross-slot storage abstraction (out of scope). Plain `localStorage` is the established pattern for global display preferences in this app (`useSnow`, `useSilly`).
 
 **Trade-off**: a per-slot database reset will **not** clear the account email display label — only a full **Sign out** (which calls `setSettings({ account: undefined })`) or clearing browser site data will. This is cosmetic: the GIS access token is always in-memory, so actual sync capability is always correct after a reload. The stale email is never used for authorization.
+
+### 17.3 Access token stored in `sessionStorage`
+
+**Draft §6 / §13** stated that the access token would be kept "in memory only" and rely on GIS `prompt: ''` to silently refresh the token upon a page reload.
+
+**Actual implementation**: The access token is cached in `sessionStorage` with its exact expiration timestamp.
+
+**Rationale**: Modern browsers aggressively block third-party cookies (e.g. Safari ITP, Chrome phaseout). The Google Identity Services silent token fetch (`prompt: ''`) relies on checking the Google session invisibly, which fails in many browsers without explicit user interaction on page load, leaving the user abruptly signed out on refresh. Caching the token in `sessionStorage` allows the session to robustly survive a browser refresh. It remains secure because `sessionStorage` is automatically wiped by the browser as soon as the tab is closed, bounding the token's lifetime strictly to the active session.
