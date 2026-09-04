@@ -40,7 +40,7 @@ export function CloudSyncCard() {
     conflictInfo,
     resolveConflict,
   } = useContext(CloudSyncContext)
-    console.log("🚀 ~ CloudSyncCard ~ configured:", configured)
+
 
   if (!configured) return null
 

@@ -5,9 +5,9 @@ import {
   useGoogleAuth,
   useSyncEngine,
 } from '@genshin-optimizer/common/cloud-sync-ui'
+import type { CloudSyncContextObj } from '@genshin-optimizer/common/cloud-sync-ui'
 import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
 import { useEffect, useMemo, useRef } from 'react'
-import type { CloudSyncContextObj } from '../context/CloudSyncContext'
 import { useCloudSyncSettings } from './useCloudSyncSettings'
 
 /**
@@ -94,6 +94,26 @@ export function useCloudSync(
     })
     return unfollow
   }, [database])
+
+  // §6: silently re-acquire an expired access token when the engine enters the error state
+  // while the user is still "signed in" (i.e. the persisted account info is present but the
+  // 1-hour token has lapsed). GIS will re-issue a token without showing a consent screen as
+  // long as the browser still holds a valid Google session cookie. If that also fails (offline,
+  // session expired), we stay in error state — the user sees the error indicator and can
+  // manually click "Sign in" again (spec §6/§12).
+  const authRef = useRef(auth)
+  authRef.current = auth
+  useEffect(() => {
+    if (status !== 'error') return
+    if (authRef.current.status !== 'signed-in') return
+    authRef.current
+      .signIn(/* promptless= */ true)
+      .then(() => actionsRef.current.syncNow())
+      .catch(() => {
+        // Silent re-auth failed (session expired / offline) — stay in error state.
+        // The user will be prompted to re-authenticate manually.
+      })
+  }, [status])
 
   return useMemo<CloudSyncContextObj>(
     () => ({

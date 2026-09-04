@@ -1,6 +1,6 @@
 # Design: Cloud Sync (Google Drive)
 
-**Status:** Draft — open questions resolved (see §16). No code has been changed for this feature yet.
+**Status:** Implemented (GI, Phase 1). See §17 for implementation deviations from this draft.
 **Author:** GitHub Copilot (drafted from repo analysis)
 **Date:** 2026-08-29
 
@@ -69,8 +69,8 @@ New libraries mirror the existing `common/database` + `common/database-ui` split
 - Scope requested: `https://www.googleapis.com/auth/drive.file` only.
 - No client secret is needed (public SPA flow); a **Google Cloud OAuth Client ID** (Web application type) must be registered per site origin (`frzyc.github.io/genshin-optimizer`, `frzyc.github.io/zenless-optimizer`, plus `localhost` for dev). **Confirmed** (§16.4): the repo owner creates/owns the Google Cloud project and registers these Client ID(s) as a one-time external setup task; this PR only needs to consume the resulting Client ID as build-time config (§6.1). End users never interact with Google Cloud Console directly — they only see the standard Google account chooser + consent screen when they click **Sign in with Google**, same as any other "Sign in with Google" button on the web.
 - Token handling:
-  - Access token kept **in memory only** (React context/module state), never written to `localStorage`/`DBStorage`. It's short-lived (~1h) and re-requested (silently, via GIS's prompt-less re-auth when a valid session cookie exists) when needed.
-  - A lightweight "is connected" boolean + the Google account email/avatar (for display) *is* persisted in `DBStorage` (per game, global — not per slot) so the Settings screen can show "Signed in as ___" without a network round-trip, but this is not a security-sensitive secret.
+  - Access token kept **in memory only** (React context/module state), never written to `localStorage`/`DBStorage`. It's short-lived (~1h) and re-requested silently (via GIS `prompt: ''`) when a Drive call returns an auth error — implemented as a `useEffect` in `useCloudSync` that watches `SyncEngine` status; see §17.1.
+  - A lightweight "is connected" boolean + the Google account email/avatar (for display) is persisted so the Settings screen can show "Signed in as ___" without a network round-trip. **Implementation note**: this is stored in plain `localStorage` (key `gi_cloudSyncSettings`) rather than `DBStorage` — see §17.2 for rationale.
   - **Sign out** revokes the token (`google.accounts.oauth2.revoke`) and clears the persisted "is connected" flag.
 
 ### 6.1 Build-time configuration
@@ -206,8 +206,11 @@ New `CloudSyncCard` (per game, in `libs/{gi,sr,zzz}/ui/src/components/...`), pla
 | Path | Change |
 |---|---|
 | `libs/common/cloud-sync/*` | **New lib**: `GoogleAuth`, `DriveClient`, `SyncEngine`, debounce util, types. |
-| `libs/common/cloud-sync-ui/*` | **New lib**: `SignInButton`, `CloudSyncCard`, `ConflictDialog`, hooks (`useCloudSync`). |
+| `libs/common/cloud-sync-ui/*` | **New lib**: `SignInButton`, `CloudSyncCard`, `ConflictDialog`, `CloudSyncContext`, `useCloudSyncSettings` (generic, parameterized by `storageKey`), hooks (`useGoogleAuth`, `useSyncEngine`). |
 | `libs/gi/db/src/Database/DataEntries/CloudSyncMetaEntry.ts` (+ SR/ZZZ equivalents) | **New**: per-slot `CloudSyncMeta` storage entry, following the existing `DBMetaEntry` pattern. |
+| `libs/gi/ui/src/hooks/useCloudSync.tsx` | **New**: GI-specific wiring hook — only `applyCloudSnapshot` is game-specific; everything else is structural boilerplate SR/ZZZ will replicate. |
+| `libs/gi/ui/src/hooks/useCloudSyncSettings.tsx` | **Thin wrapper** re-exporting `useCloudSyncSettings('gi_cloudSyncSettings', …)` from `common/cloud-sync-ui`. SR/ZZZ use `'sr_cloudSyncSettings'` / `'zzz_cloudSyncSettings'`. |
+| `libs/gi/ui/src/context/CloudSyncContext.tsx` | **Thin re-export** of `CloudSyncContext` / `CloudSyncContextObj` from `common/cloud-sync-ui`. |
 | `libs/{gi,sr,zzz}/page-settings/src/index.tsx` | Add `<CloudSyncCard />`. |
 | `apps/{frontend,sr-frontend,zzz-frontend}/index.html` | Add GIS script tag / env-driven OAuth Client ID. |
 | `.env`/build config | Inject per-site Google OAuth Client ID and debounce default/min/max (public, non-secret values) at build time — see §6.1. |
@@ -219,3 +222,27 @@ New `CloudSyncCard` (per game, in `libs/{gi,sr,zzz}/ui/src/components/...`), pla
 3. **Debounce default/bounds — resolved.** Only the **default** debounce value is build-time configurable per app (§6.1), alongside the OAuth Client ID. The **min/max bounds (5s/120s)** are fixed constants in the `common/cloud-sync` source code (§7) — not configurable at build time or otherwise. The user can still override the value at runtime within those fixed bounds via the Settings UI (§11).
 4. **OAuth Client ID ownership — resolved.** The repo owner creates/owns the Google Cloud project and registers the OAuth Client ID(s) for each production domain (plus `localhost` for dev) as a one-time external setup task outside this PR. End users need **no** Google Cloud setup of their own — they only see and approve the standard Google OAuth consent screen the first time they click "Sign in with Google" (§6, §6.1).
 5. **Rollout order — resolved: GI first.** GI (`frontend`) ships first, using the new `common/cloud-sync` engine; SR/ZZZ follow in a later PR reusing the same engine (§14).
+
+## 17. Implementation deviations from this draft
+
+Recorded during the Phase 1 GI implementation. These are intentional, audited choices — not bugs.
+
+### 17.1 Silent re-auth wired in React layer, not in `SyncEngine`
+
+**Draft §6** implied the re-auth logic lived close to the token client and would happen transparently whenever a token was needed.
+
+**Actual implementation**: `SyncEngine` is deliberately auth-agnostic (it only calls `DriveClient`, which calls `getAccessToken()` lazily). Silent re-auth is instead handled by a `useEffect` in [`useCloudSync.tsx`](libs/gi/ui/src/hooks/useCloudSync.tsx) that watches `SyncEngine` status: when it transitions to `'error'` and `authStatus` is still `'signed-in'` (token expired, not signed out), it calls `auth.signIn(/* promptless= */ true)`. GIS re-issues a token without a consent screen as long as the browser session cookie is still valid, then `syncNow()` is retried immediately.
+
+If the silent re-auth itself fails (session expired, offline), the engine stays in `'error'` and the user sees the error indicator and must click **Sign in** manually (§12).
+
+**Why not in `SyncEngine`?** `SyncEngine` lives in `common/cloud-sync` (framework-agnostic, no React). Coupling it to `GoogleAuth` would break the auth-agnostic contract and make unit tests significantly harder — the tests mock `DriveClient` only and have no knowledge of auth state.
+
+### 17.2 `CloudSyncSettings` stored in `localStorage`, not `DBStorage`
+
+**Draft §6** said: _"persisted in `DBStorage` (per game, global — not per slot)"_.
+
+**Actual implementation**: [`useCloudSyncSettings.tsx`](libs/gi/ui/src/hooks/useCloudSyncSettings.tsx) uses `localStorage` (key `gi_cloudSyncSettings`).
+
+**Rationale**: `DBStorage` in this codebase is per-slot — each `ArtCharDatabase` owns its own storage instance keyed to a `dbIndex`. There is no shared cross-slot `DBStorage`. Storing global settings (account email, debounce interval) there would require either picking an arbitrary slot as the "global" home (fragile) or adding a new cross-slot storage abstraction (out of scope). Plain `localStorage` is the established pattern for global display preferences in this app (`useSnow`, `useSilly`).
+
+**Trade-off**: a per-slot database reset will **not** clear the account email display label — only a full **Sign out** (which calls `setSettings({ account: undefined })`) or clearing browser site data will. This is cosmetic: the GIS access token is always in-memory, so actual sync capability is always correct after a reload. The stale email is never used for authorization.
