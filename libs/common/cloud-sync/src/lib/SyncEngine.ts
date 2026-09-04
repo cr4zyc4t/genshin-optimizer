@@ -165,9 +165,7 @@ export class SyncEngine {
    *   `syncNow`) already has it. Skips the redundant `getFileMetadata` call in that case.
    */
   private async upload(
-    knownRemoteMeta?: Awaited<
-      ReturnType<DriveClient['getFileMetadata']>
-    >
+    knownRemoteMeta?: Awaited<ReturnType<DriveClient['getFileMetadata']>>
   ): Promise<void> {
     if (!this.deps.getMeta().enabled) return
     this.setStatus('syncing')
