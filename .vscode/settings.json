@@ -15,5 +15,8 @@
   "js/ts.tsdk.path": "node_modules/typescript/lib",
   "[jsonc]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "search.exclude": {
+    "**/libs/*/dm/**": true
   }
 }
