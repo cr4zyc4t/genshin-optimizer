@@ -7,6 +7,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import LanguageCard from './LanguageCard'
 import SillyCard from './SillyCard'
 import { SnowToggle } from './SnowToggle'
+import CloudSyncCard from './CloudSyncCard'
 
 export default function PageSettings() {
   const { t } = useTranslation(['settings'])
@@ -37,6 +38,7 @@ export default function PageSettings() {
             <LocalStorageUsageCard />
           </Grid>
         </Grid>
+        {Boolean(process.env['NX_GOOGLE_CLIENT_ID']) && <CloudSyncCard />}
         <DatabaseCard />
       </CardContent>
     </CardThemed>

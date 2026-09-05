@@ -1,4 +1,8 @@
 import { useDataManagerKeys } from '@genshin-optimizer/common/database-ui'
+import {
+  CloudSyncStatusChip,
+  useCloudSync,
+} from '@genshin-optimizer/common/gdrive-ui'
 import { AnvilIcon } from '@genshin-optimizer/common/svgicons'
 import { Tally } from '@genshin-optimizer/common/ui'
 import { shouldShowDevComponents } from '@genshin-optimizer/common/util'
@@ -158,6 +162,52 @@ function HeaderContent({ anchor }: { anchor: string }) {
     return <MobileHeader anchor={anchor} currentTab={currentTab ?? ''} />
   return <DesktopHeader anchor={anchor} currentTab={currentTab ?? ''} />
 }
+function HeaderSyncChipWrapper(props: {
+  children?: ReactNode
+  onChange?: unknown
+  onFocus?: unknown
+  selected?: unknown
+  value?: unknown
+  indicator?: unknown
+  textColor?: unknown
+  fullWidth?: unknown
+  selectionFollowsFocus?: unknown
+  tabIndex?: unknown
+  'aria-selected'?: unknown
+  'aria-controls'?: unknown
+  role?: unknown
+}) {
+  const {
+    onChange,
+    onFocus,
+    selected,
+    value,
+    indicator,
+    textColor,
+    fullWidth,
+    selectionFollowsFocus,
+    tabIndex,
+    'aria-selected': ariaSelected,
+    'aria-controls': ariaControls,
+    role,
+    children,
+    ...rest
+  } = props
+  return (
+    <Box
+      sx={{
+        ml: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        mr: 1,
+      }}
+      {...rest}
+    >
+      {children}
+    </Box>
+  )
+}
+
 function DesktopHeader({
   anchor,
   currentTab,
@@ -167,8 +217,10 @@ function DesktopHeader({
 }) {
   const theme = useTheme()
   const isXL = useMediaQuery(theme.breakpoints.up('xl'))
-  const { t } = useTranslation('ui')
+  const { t } = useTranslation(['ui', 'settings'])
   const { silly } = useContext(SillyContext)
+  const { session } = useCloudSync()
+
   return (
     <AppBar
       position="static"
@@ -224,11 +276,12 @@ function DesktopHeader({
           const tooltipIcon = isXL ? (
             icon
           ) : (
-            <Tooltip arrow title={t(i18Key)}>
+            <Tooltip key={value} arrow title={t(i18Key)}>
               {icon as JSX.Element}
             </Tooltip>
           )
-          return (
+          const isSetting = value === 'setting'
+          const tab = (
             <Tab
               key={value}
               value={value}
@@ -244,9 +297,24 @@ function DesktopHeader({
                   </Box>
                 ) : undefined
               }
-              sx={{ ml: value === 'setting' ? 'auto' : undefined }}
+              sx={{ ml: isSetting && !session ? 'auto' : undefined }}
             />
           )
+
+          if (isSetting && session) {
+            return [
+              <HeaderSyncChipWrapper key="cloud-sync-chip">
+                <CloudSyncStatusChip
+                  component={RouterLink}
+                  to="/setting"
+                  clickable
+                />
+              </HeaderSyncChipWrapper>,
+              tab,
+            ]
+          }
+
+          return tab
         })}
       </Tabs>
     </AppBar>
@@ -277,8 +345,10 @@ function MobileHeader({
     setMobileOpen(!mobileOpen)
   }
 
-  const { t } = useTranslation('ui')
+  const { t } = useTranslation(['ui', 'settings'])
   const { silly } = useContext(SillyContext)
+  const { session } = useCloudSync()
+
   return (
     <>
       <AppBar
@@ -392,6 +462,15 @@ function MobileHeader({
             ) : undefined}
           </Button>
           <Box flexGrow={1} />
+          {session && (
+            <Box sx={{ mr: 1, display: 'flex', alignItems: 'center' }}>
+              <CloudSyncStatusChip
+                component={RouterLink}
+                to="/setting"
+                clickable
+              />
+            </Box>
+          )}
           <IconButton
             color="inherit"
             aria-label="open drawer"
