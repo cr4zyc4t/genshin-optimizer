@@ -21,6 +21,10 @@ on:
         type: boolean
         default: true
 
+    secrets:
+      NX_GOOGLE_CLIENT_ID:
+        required: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,9 +49,13 @@ jobs:
           yarn install --immutable
       - name: Setup .env
         run: |
-          printf '%s' "$ENVFILE" > apps/frontend/.env.local
+          printf '%s\n' "$ENVFILE" > apps/frontend/.env.local
+          if [ -n "$NX_GOOGLE_CLIENT_ID" ]; then
+            echo "NX_GOOGLE_CLIENT_ID=$NX_GOOGLE_CLIENT_ID" >> apps/frontend/.env.local
+          fi
         env:
           ENVFILE: ${{ vars.ENVFILE }}
+          NX_GOOGLE_CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
       - name: Build frontend
         run: |
           echo $NX_SHOW_DEV_COMPONENTS
@@ -56,6 +64,7 @@ jobs:
           NX_URL_GITHUB_GO_CURRENT_VERSION: "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
           NX_DAEMON: false
           NX_SHOW_DEV_COMPONENTS: ${{inputs.show_dev_components}}
+          NX_GOOGLE_CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
       - name: echos
         run: |
           echo ${{inputs.frontend_name}} > frontend_name

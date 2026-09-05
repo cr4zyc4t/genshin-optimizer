@@ -1,8 +1,8 @@
 export interface CloudAccountSession {
-  sub?: string
+  sub?: string | undefined
   email: string
   name: string
-  picture?: string
+  picture?: string | undefined
   accessToken: string
   expiresAt: number
   scope: string
@@ -63,18 +63,18 @@ export interface ConflictComparison {
   local: SyncVersionDescriptor
   cloud: SyncVersionDescriptor
   hasSevereDisparity: boolean
-  disparityWarningText?: string
+  disparityWarningText?: string | undefined
 }
 
 export interface GISConfig {
   clientId: string
-  scope?: string
+  scope?: string | undefined
 }
 
 export interface DriveFileMetadata {
   id: string
   name: string
   modifiedTime: string
-  size?: string
-  version?: string
+  size?: string | undefined
+  version?: string | undefined
 }

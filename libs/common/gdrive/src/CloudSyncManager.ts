@@ -13,8 +13,8 @@ import type {
 export const SYNC_METADATA_STORAGE_KEY = 'gdrive_sync_metadata'
 
 export interface CloudSyncManagerOptions {
-  debounceMs?: number
-  syncFileName?: string
+  debounceMs?: number | undefined
+  syncFileName?: string | undefined
 }
 
 export class CloudSyncManager {

@@ -25,6 +25,7 @@ on:
 jobs:
   call-build:
     uses: ./.github/workflows/build-frontend.yml
+    secrets: inherit
     with:
       frontend_name: 'frontend'
       deployment_name: ${{ github.event.number }}

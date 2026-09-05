@@ -46,15 +46,20 @@ jobs:
           yarn install --immutable
       - name: Setup .env
         run: |
-          printf '%s' "$ENVFILE" > apps/frontend/.env.local
+          printf '%s\n' "$ENVFILE" > apps/frontend/.env.local
+          if [ -n "$NX_GOOGLE_CLIENT_ID" ]; then
+            echo "NX_GOOGLE_CLIENT_ID=$NX_GOOGLE_CLIENT_ID" >> apps/frontend/.env.local
+          fi
         env:
           ENVFILE: ${{ vars.ENVFILE }}
+          NX_GOOGLE_CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
       - name: Build genshin-optimizer
         run: |
           yarn run nx run frontend:build:production
         env:
           NX_URL_GITHUB_GO_CURRENT_VERSION: "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
           NX_DAEMON: false
+          NX_GOOGLE_CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
       - name: Create Deploy PR
         run: |
           git fetch origin gh-pages --depth=1

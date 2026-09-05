@@ -13,6 +13,7 @@ concurrency:
 jobs:
   call-build-frontend:
     uses: ./.github/workflows/build-frontend.yml
+    secrets: inherit
     with:
       frontend_name: 'frontend'
       deployment_name: 'beta'

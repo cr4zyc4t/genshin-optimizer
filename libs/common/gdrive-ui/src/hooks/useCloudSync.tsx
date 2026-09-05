@@ -20,8 +20,8 @@ import { useCloudAuth } from './useCloudAuth'
 export interface UseCloudSyncOptions {
   clientId: string
   adapter: MultiSlotDataAdapter
-  debounceMs?: number
-  syncFileName?: string
+  debounceMs?: number | undefined
+  syncFileName?: string | undefined
 }
 
 export interface UseCloudSyncReturn {
@@ -138,8 +138,8 @@ export function CloudSyncProvider({
   children: ReactNode
   clientId: string
   adapter: MultiSlotDataAdapter
-  debounceMs?: number
-  syncFileName?: string
+  debounceMs?: number | undefined
+  syncFileName?: string | undefined
 }) {
   const value = useCloudSyncInstance({
     clientId,
