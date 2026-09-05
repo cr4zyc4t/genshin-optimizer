@@ -37,14 +37,22 @@ jobs:
           ref: gh-pages
           path: gh-pages
       - name: Make commit to deploy
+        id: clean
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config pull.rebase false
-          git rm -r ./${{ steps.build-info.outputs.deploy_path }}
-          git commit -m "clean ${{ steps.build-info.outputs.deploy_path }}"
+          if [ -d "./${{ steps.build-info.outputs.deploy_path }}" ]; then
+            git rm -r ./${{ steps.build-info.outputs.deploy_path }}
+            git commit -m "clean ${{ steps.build-info.outputs.deploy_path }}"
+            echo "cleaned=true" >> $GITHUB_OUTPUT
+          else
+            echo "Deployment path ./${{ steps.build-info.outputs.deploy_path }} does not exist, nothing to clean."
+            echo "cleaned=false" >> $GITHUB_OUTPUT
+          fi
         working-directory: gh-pages
       - name: Push commit
+        if: steps.clean.outputs.cleaned == 'true'
         uses: nick-fields/retry@v2
         with:
           max_attempts: 4
@@ -54,9 +62,11 @@ jobs:
             git pull origin gh-pages
             git push origin gh-pages
       - name: Output date
+        if: steps.clean.outputs.cleaned == 'true'
         id: output-date
         run: echo "date=$(date -u)" >> $GITHUB_OUTPUT
       - name: Find Comment
+        if: steps.clean.outputs.cleaned == 'true'
         uses: peter-evans/find-comment@v3
         id: fc
         with:
@@ -64,6 +74,7 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: Deployed
       - name: Create or update comment
+        if: steps.clean.outputs.cleaned == 'true' && steps.fc.outputs.comment-id != ''
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
