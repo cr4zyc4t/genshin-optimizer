@@ -69,5 +69,37 @@
       "delCharNotInImport": "Assume the import is your full inventory of characters. Characters in the GO Inventory that don't exist in the import will be deleted.",
       "keepCharNotInImport": "Assume the import is a partial inventory of characters. Nothing will be deleted."
     }
+  },
+  "cloudSync": {
+    "title": "Google Drive Cloud Synchronization",
+    "loginMsg": "Sign in with your Google Drive account to enable automatic cloud backup and synchronization across devices. Your data is stored securely in your private, hidden Google Drive application folder.",
+    "loginBtn": "Login with Google Drive",
+    "logoutBtn": "Disconnect",
+    "syncNowBtn": "Sync Now",
+    "status": {
+      "unauthenticated": "Not Connected",
+      "idle": "Synced",
+      "debouncing": "Pending Sync (10s)",
+      "syncing": "Syncing...",
+      "conflict": "Conflict Detected",
+      "error": "Sync Error",
+      "expired": "Session Expired"
+    },
+    "lastSync": "Last Sync: {{time}}",
+    "neverSynced": "Last Sync: Never",
+    "resolveConflict": "Resolve Conflict",
+    "disparityWarning": "Warning: Data disparity detected between local and cloud backup."
+  },
+  "conflictDialog": {
+    "title": "Cloud Synchronization Conflict",
+    "desc": "Divergent changes have been made locally and in your Google Drive cloud backup. Please select which version to keep.",
+    "localTitle": "Local Device Data",
+    "cloudTitle": "Google Drive Backup",
+    "modified": "Last Modified: {{time}}",
+    "size": "Size: {{size}}",
+    "disparityAlert": "Caution: One version has substantially less data than the other. Choosing the smaller version may cause irreversible loss of characters or artifacts.",
+    "keepLocal": "Keep Local Data (Upload to Cloud)",
+    "useCloud": "Use Cloud Data (Overwrite Local)",
+    "cancel": "Close (Review Later)"
   }
 }

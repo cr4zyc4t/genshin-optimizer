@@ -219,6 +219,7 @@ export function LocalStorageUsageCard() {
                 .sort((a, b) => b[1] - a[1])
                 .map(([key, megabytes]) => (
                   <TableRow
+                    key={key}
                     sx={{
                       opacity:
                         percentByCategory[key] > DISPLAY_PERCENT_THRESH
