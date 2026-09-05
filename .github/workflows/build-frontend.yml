@@ -21,10 +21,6 @@ on:
         type: boolean
         default: true
 
-    secrets:
-      NX_GOOGLE_CLIENT_ID:
-        required: false
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,15 +43,6 @@ jobs:
       - name: Yarn install
         run: |
           yarn install --immutable
-      - name: Check NX_GOOGLE_CLIENT_ID secret
-        run: |
-          if [ -z "$CLIENT_ID" ]; then
-            echo "::warning title=Missing Secret::NX_GOOGLE_CLIENT_ID secret is EMPTY! Check Repository Secrets in GitHub Settings."
-          else
-            echo "NX_GOOGLE_CLIENT_ID secret is present (length: ${#CLIENT_ID})"
-          fi
-        env:
-          CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
       - name: Setup .env
         run: |
           printf '%s\n' "$ENVFILE" > apps/frontend/.env.local

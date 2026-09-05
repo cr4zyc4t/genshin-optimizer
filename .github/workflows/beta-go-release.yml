@@ -13,8 +13,7 @@ concurrency:
 jobs:
   call-build-frontend:
     uses: ./.github/workflows/build-frontend.yml
-    secrets:
-      NX_GOOGLE_CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
+    secrets: inherit
     with:
       frontend_name: 'frontend'
       deployment_name: 'beta'
