@@ -6,10 +6,10 @@ permissions:
 on:
   push:
     branches:
-      - master
+      - production
   pull_request:
     branches:
-      - master
+      - production
 
 jobs:
   lint:
@@ -17,6 +17,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -32,6 +35,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
       - name: Get Cache Key
         id: get-cache-key
         run: |
@@ -62,12 +68,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.sha }} # Force checking of the whole repo when running on pushes to master
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
+          ref: ${{ github.sha }} # Force checking of the whole repo when running on pushes to production
           fetch-depth: 0
-      - name: Fetch master
+      - name: Fetch production
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          git fetch --no-tags --no-recurse-submodules --filter=blob:none origin +master:refs/heads/master
+          git fetch --no-tags --no-recurse-submodules --filter=blob:none origin +production:refs/heads/production
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -83,6 +91,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -98,6 +109,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
       - name: Get Cache Key
         id: get-cache-key
         run: |
@@ -111,6 +125,8 @@ jobs:
             submodule-${{steps.get-cache-key.outputs.baseKey}}
       - uses: actions/checkout@v6
         with:
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
           submodules: true
       - name: Sparse Checkout
         run: |

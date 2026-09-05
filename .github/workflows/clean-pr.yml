@@ -9,7 +9,11 @@ on:
       deployment_name:
         description: 'Name for the deployment'
         type: string
-        default: 'master'
+        default: 'production'
+
+permissions:
+  contents: write
+  issues: write
 
 jobs:
   deploy:
@@ -25,11 +29,11 @@ jobs:
           else
             echo "deploy_path=${{ github.event.number }}" >> $GITHUB_OUTPUT
           fi
-      - name: Checkout external gh-pages
+      - name: Checkout gh-pages
         uses: actions/checkout@v6
         with:
-          repository: ${{ vars.PR_REPO }}
-          ssh-key: ${{ secrets.PR_REPO_SSH_KEY }}
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
           ref: gh-pages
           path: gh-pages
       - name: Make commit to deploy

@@ -5,15 +5,13 @@ on:
   workflow_run:
     workflows:
       - Build GO (WR) PR
-      - Build SRO PR
-      - Build ZO PR
-      - Build ZO Release
       - New Beta GO Release
-      - New Beta SRO Release
-      - New Beta ZO Release
-      - New ZO Release
     types:
       - completed
+
+permissions:
+  contents: write
+  issues: write
 
 jobs:
   deploy:
@@ -25,21 +23,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
       - name: Setup variables
         id: vars
         run: |
           echo "deployment_name=$(cat frontend_build/deployment_name)" >> $GITHUB_OUTPUT
           echo "frontend_name=$(cat frontend_build/frontend_name)" >> $GITHUB_OUTPUT
           echo "nested_deployments=$(cat frontend_build/nested_deployments)" >> $GITHUB_OUTPUT
-          echo "repo_var_name=$(cat frontend_build/repo_var_name)" >> $GITHUB_OUTPUT
-          echo "repo_deploy_secret_name=$(cat frontend_build/repo_deploy_secret_name)" >> $GITHUB_OUTPUT
           echo "ref=$(cat frontend_build/ref)" >> $GITHUB_OUTPUT
-      - name: Checkout external gh-pages
+      - name: Checkout gh-pages
         uses: actions/checkout@v6
         with:
-          repository: ${{ vars[steps.vars.outputs.repo_var_name] }}
-          ssh-key: ${{ secrets[steps.vars.outputs.repo_deploy_secret_name] }}
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
           ref: gh-pages
           path: gh-pages
       - name: Move to external gh-pages (nested)
@@ -84,7 +80,7 @@ jobs:
         id: export-url
         # First line splits the full repo name (frzyc/genshin-optimizer) into $account (frzyc) and $repo (genshin-optimizer)
         run: |
-          IFS=/ read -r account repo <<< ${{ vars[steps.vars.outputs.repo_var_name] }}
+          IFS=/ read -r account repo <<< ${{ github.repository }}
           echo "url=Deployed ${{ steps.vars.outputs.ref }} to https://$account.github.io/$repo/${{ steps.vars.outputs.deployment_name }}/${{ steps.vars.outputs.frontend_name }} (Takes 3-5 minutes after this completes to be available)" >> $GITHUB_OUTPUT
       - name: Output date
         id: output-date2
