@@ -1,6 +1,10 @@
+import { CloudSyncProvider } from '@genshin-optimizer/common/gdrive-ui'
 import { ScrollTop, useRefSize, useTitle } from '@genshin-optimizer/common/ui'
 import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
-import { DatabaseContext } from '@genshin-optimizer/gi/db-ui'
+import {
+  DatabaseContext,
+  GenshinSlotAdapter,
+} from '@genshin-optimizer/gi/db-ui'
 import '@genshin-optimizer/gi/i18n' // import to load translations
 import { theme } from '@genshin-optimizer/gi/theme'
 import {
@@ -122,6 +126,7 @@ function App() {
     () => ({ databases, setDatabases, database, setDatabase }),
     [databases, setDatabases, database, setDatabase]
   )
+  const adapter = useMemo(() => new GenshinSlotAdapter(databases), [databases])
   const SillyContextObj = useSilly()
   const SnowContextObj = useSnow()
   return (
@@ -132,14 +137,19 @@ function App() {
         <SillyContext.Provider value={SillyContextObj}>
           <SnowContext.Provider value={SnowContextObj}>
             <DatabaseContext.Provider value={dbContextObj}>
-              <ErrorBoundary>
-                <HashRouter basename="/">
-                  <AdBlockContextWrapper>
-                    <Content />
-                  </AdBlockContextWrapper>
-                  <ScrollTop />
-                </HashRouter>
-              </ErrorBoundary>
+              <CloudSyncProvider
+                clientId={process.env['NX_GOOGLE_CLIENT_ID'] || ''}
+                adapter={adapter}
+              >
+                <ErrorBoundary>
+                  <HashRouter basename="/">
+                    <AdBlockContextWrapper>
+                      <Content />
+                    </AdBlockContextWrapper>
+                    <ScrollTop />
+                  </HashRouter>
+                </ErrorBoundary>
+              </CloudSyncProvider>
             </DatabaseContext.Provider>
           </SnowContext.Provider>
         </SillyContext.Provider>

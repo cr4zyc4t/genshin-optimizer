@@ -33,6 +33,7 @@ export function AdWrapper({
   // biome-ignore lint/correctness/noUnreachable: turn off ads for this fork
   if (hostname === 'frzyc.github.io' && !adblockEnabled)
     return <AdSenseUnit dataAdSlot={dataAdSlot} sx={sx} fullWidth={fullWidth} />
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return null
   if (!show) return null
   return (
     <Ad sx={sx} bgt={bgt}>

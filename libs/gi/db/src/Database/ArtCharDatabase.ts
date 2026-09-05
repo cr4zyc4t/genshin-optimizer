@@ -98,6 +98,7 @@ export class ArtCharDatabase extends Database {
     this.chars.followAny(updateLastEdit)
     this.arts.followAny(updateLastEdit)
     this.weapons.followAny(updateLastEdit)
+    this.generatedBuildList.followAny(updateLastEdit)
     this.optConfigs.followAny(updateLastEdit)
     this.buildTcs.followAny(updateLastEdit)
     this.charMeta.followAny(updateLastEdit)

@@ -90,7 +90,6 @@ export class DataEntryBase<
     if (!data) return
     this.data = data
     this.setCached(this.data)
-    this.listeners = []
   }
   clearStorage() {
     this.database.storage.remove(this.toStorageKey())
