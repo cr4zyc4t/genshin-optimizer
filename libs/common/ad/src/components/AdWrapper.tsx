@@ -29,6 +29,8 @@ export function AdWrapper({
   const adblockEnabled = useContext(IsAdBlockedContext)
   const hostname = window.location.hostname
 
+  return null;
+  // biome-ignore lint/correctness/noUnreachable: turn off ads for this fork
   if (hostname === 'frzyc.github.io' && !adblockEnabled)
     return <AdSenseUnit dataAdSlot={dataAdSlot} sx={sx} fullWidth={fullWidth} />
   if (!show) return null

@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [closed]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
@@ -41,7 +47,6 @@ jobs:
       - name: Setup .env
         run: |
           printf '%s' "$ENVFILE" > apps/frontend/.env.local
-          printf '%s' "$ENVFILE" > apps/zzz-frontend/.env.local
         env:
           ENVFILE: ${{ vars.ENVFILE }}
       - name: Build genshin-optimizer
@@ -50,6 +55,7 @@ jobs:
         env:
           NX_URL_GITHUB_GO_CURRENT_VERSION: "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
           NX_DAEMON: false
+          NX_GOOGLE_CLIENT_ID: ${{ secrets.NX_GOOGLE_CLIENT_ID }}
       - name: Create Deploy PR
         run: |
           git fetch origin gh-pages --depth=1
