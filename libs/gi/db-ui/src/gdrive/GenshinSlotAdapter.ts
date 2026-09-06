@@ -168,8 +168,7 @@ async function computeSHA256(str: string): Promise<string> {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     return (
-      'sha256-' +
-      hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+      'sha256-' + hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
     )
   }
 

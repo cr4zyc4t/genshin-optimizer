@@ -56,7 +56,9 @@ describe('CloudSyncStatusChip', () => {
     })
 
     render(<CloudSyncStatusChip showUnauthenticated />)
-    expect(screen.getByText('settings:cloudSync.status.unauthenticated')).toBeDefined()
+    expect(
+      screen.getByText('settings:cloudSync.status.unauthenticated')
+    ).toBeDefined()
   })
 
   it('renders IDLE status when authenticated', () => {
