@@ -3,6 +3,7 @@ import {
   ConflictDialog,
   useCloudSync,
 } from '@genshin-optimizer/common/gdrive-ui'
+import type { ConflictComparison } from '@genshin-optimizer/common/gdrive'
 import { CardThemed } from '@genshin-optimizer/common/ui'
 import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import GoogleIcon from '@mui/icons-material/Google'
@@ -39,9 +40,8 @@ export function CloudSyncCard() {
   } = useCloudSync()
 
   const [conflictModalOpen, setConflictModalOpen] = useState(false)
-  const [dismissedConflict, setDismissedConflict] = useState<unknown | null>(
-    null
-  )
+  const [dismissedConflict, setDismissedConflict] =
+    useState<ConflictComparison | null>(null)
 
   const formatLastSync = () => {
     if (!syncState.lastSyncTime) return t('cloudSync.neverSynced')
@@ -54,8 +54,6 @@ export function CloudSyncCard() {
   const isModalOpen =
     conflictModalOpen ||
     (isConflictActive && dismissedConflict !== activeConflict)
-
-  if (!process.env['NX_GOOGLE_CLIENT_ID']) return null
 
   return (
     <>
@@ -85,7 +83,7 @@ export function CloudSyncCard() {
         <Divider />
         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {authError && <Alert severity="error">{authError}</Alert>}
-          {syncState.errorMessage && (
+          {session && syncState.errorMessage && (
             <Alert severity="error">{syncState.errorMessage}</Alert>
           )}
 

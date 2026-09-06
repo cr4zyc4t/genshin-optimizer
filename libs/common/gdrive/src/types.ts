@@ -63,7 +63,6 @@ export interface ConflictComparison {
   local: SyncVersionDescriptor
   cloud: SyncVersionDescriptor
   hasSevereDisparity: boolean
-  disparityWarningText?: string | undefined
 }
 
 export interface GISConfig {
