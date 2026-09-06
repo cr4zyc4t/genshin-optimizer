@@ -7,7 +7,14 @@ import CloudDoneIcon from '@mui/icons-material/CloudDone'
 import CloudOffIcon from '@mui/icons-material/CloudOff'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import { Chip, type ChipProps, CircularProgress, Tooltip } from '@mui/material'
+import {
+  Chip,
+  type ChipProps,
+  CircularProgress,
+  type SxProps,
+  type Theme,
+  Tooltip,
+} from '@mui/material'
 
 export interface CloudSyncStatusChipProps
   extends Omit<ChipProps, 'color' | 'icon' | 'label'> {
@@ -64,10 +71,7 @@ export function CloudSyncStatusChip({
       color = 'info'
       variant = 'outlined'
       icon = (
-        <CircularProgress
-          size={size === 'small' ? 16 : 20}
-          color="inherit"
-        />
+        <CircularProgress size={size === 'small' ? 16 : 20} color="inherit" />
       )
       break
     case 'DEBOUNCING':
@@ -119,7 +123,7 @@ export function CloudSyncStatusChip({
 
   const dimension = size === 'small' ? 28 : 36
 
-  const iconOnlySx = isIconOnly
+  const iconOnlySx: SxProps<Theme> = isIconOnly
     ? {
         width: dimension,
         height: dimension,
@@ -129,7 +133,7 @@ export function CloudSyncStatusChip({
         borderRadius: '50%',
         justifyContent: 'center',
         boxSizing: 'border-box',
-        border: variant === 'filled' ? '1px solid transparent' : undefined,
+        ...(variant === 'filled' && { border: '1px solid transparent' }),
         '& .MuiChip-label': {
           display: 'none',
           p: 0,
@@ -143,7 +147,11 @@ export function CloudSyncStatusChip({
 
   const chipElement = (
     <Chip
-      aria-label={isIconOnly ? ((chipProps['aria-label'] as string) ?? labelText) : undefined}
+      aria-label={
+        isIconOnly
+          ? ((chipProps['aria-label'] as string) ?? labelText)
+          : undefined
+      }
       {...chipProps}
       icon={icon}
       label={isIconOnly ? undefined : labelText}
@@ -152,10 +160,10 @@ export function CloudSyncStatusChip({
       variant={variant}
       clickable={isClickable}
       onClick={handleClick}
-      sx={{
-        ...iconOnlySx,
-        ...sx,
-      }}
+      sx={[
+        ...(isIconOnly ? [iconOnlySx] : []),
+        ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+      ]}
     />
   )
 
