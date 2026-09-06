@@ -90,7 +90,7 @@ describe('conflict utilities', () => {
     expect(computeSevereDisparity(local, cloud, 5000, 4900)).toBe(false)
   })
 
-  it('builds ConflictComparison descriptor with warning text when disparity exists', () => {
+  it('builds ConflictComparison descriptor with hasSevereDisparity set when disparity exists', () => {
     const local = {
       1: populatedSummary,
       2: emptySummary,
@@ -114,7 +114,6 @@ describe('conflict utilities', () => {
     })
 
     expect(comparison.hasSevereDisparity).toBe(true)
-    expect(comparison.disparityWarningText).toBeDefined()
     expect(comparison.local.byteSize).toBe(15000)
     expect(comparison.cloud.byteSize).toBe(500)
   })

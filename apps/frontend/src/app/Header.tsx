@@ -162,51 +162,6 @@ function HeaderContent({ anchor }: { anchor: string }) {
     return <MobileHeader anchor={anchor} currentTab={currentTab ?? ''} />
   return <DesktopHeader anchor={anchor} currentTab={currentTab ?? ''} />
 }
-function HeaderSyncChipWrapper(props: {
-  children?: ReactNode
-  onChange?: unknown
-  onFocus?: unknown
-  selected?: unknown
-  value?: unknown
-  indicator?: unknown
-  textColor?: unknown
-  fullWidth?: unknown
-  selectionFollowsFocus?: unknown
-  tabIndex?: unknown
-  'aria-selected'?: unknown
-  'aria-controls'?: unknown
-  role?: unknown
-}) {
-  const {
-    onChange,
-    onFocus,
-    selected,
-    value,
-    indicator,
-    textColor,
-    fullWidth,
-    selectionFollowsFocus,
-    tabIndex,
-    'aria-selected': ariaSelected,
-    'aria-controls': ariaControls,
-    role,
-    children,
-    ...rest
-  } = props
-  return (
-    <Box
-      sx={{
-        ml: 'auto',
-        display: 'flex',
-        alignItems: 'center',
-        mr: 1,
-      }}
-      {...rest}
-    >
-      {children}
-    </Box>
-  )
-}
 
 function DesktopHeader({
   anchor,
@@ -217,7 +172,7 @@ function DesktopHeader({
 }) {
   const theme = useTheme()
   const isXL = useMediaQuery(theme.breakpoints.up('xl'))
-  const { t } = useTranslation(['ui', 'settings'])
+  const { t } = useTranslation('ui')
   const { silly } = useContext(SillyContext)
   const { session } = useCloudSync()
 
@@ -228,95 +183,92 @@ function DesktopHeader({
       elevation={0}
       id={anchor}
     >
-      <Tabs
-        value={currentTab}
-        sx={(theme) => ({
-          '& .MuiTab-root': {
-            p: 1,
-            minWidth: 'auto',
-            minHeight: 'auto',
-          },
-          '& .MuiTab-root:hover': {
-            transition: 'background-color 0.5s ease',
-            backgroundColor: 'rgba(255,255,255,0.1)',
-          },
-          '& .Mui-selected': {
-            backgroundImage: `linear-gradient(to top, ${theme.palette.brand500.main}, ${theme.palette.neutral700.main})`,
-            color: `${theme.palette.neutral100.main} !important`,
-            textShadow:
-              '0.25px 0 0 currentColor, -0.25px 0 0 currentColor, 0 0.25px 0 currentColor, 0 -0.25px 0',
-          },
-        })}
-      >
-        <Tab
-          value=""
-          component={RouterLink}
-          to="/"
-          label={
-            <Box display="flex" alignItems="center">
-              <Avatar
-                src={silly ? silly_icon : go_icon}
-                variant="rounded"
-                sx={(theme) => ({
-                  height: '24px',
-                  width: '24px',
-                  boxShadow: `0 0 10px 1px ${theme.palette.brand500.main}`,
-                })}
-              />
-              <Typography variant="h6" sx={{ px: 1, fontWeight: 'Normal' }}>
-                {t(silly ? 'sillyPageTitle' : 'pageTitle')}
-              </Typography>
-              {shouldShowDevComponents && (
-                <Typography variant="body1">(Dev Mode)</Typography>
-              )}
-            </Box>
-          }
-        />
-        {maincontent.map(({ i18Key, value, to, icon, textSuffix }) => {
-          const tooltipIcon = isXL ? (
-            icon
-          ) : (
-            <Tooltip key={value} arrow title={t(i18Key)}>
-              {icon as JSX.Element}
-            </Tooltip>
-          )
-          const isSetting = value === 'setting'
-          const tab = (
-            <Tab
-              key={value}
-              value={value}
-              component={RouterLink}
-              to={to}
-              icon={tooltipIcon as ReactElement}
-              iconPosition="start"
-              label={
-                isXL || textSuffix ? (
-                  <Box display="flex" gap={0.5} alignItems="center">
-                    {isXL && <Typography>{t(i18Key)}</Typography>}
-                    {textSuffix}
-                  </Box>
-                ) : undefined
-              }
-              sx={{ ml: isSetting && !session ? 'auto' : undefined }}
-            />
-          )
-
-          if (isSetting && session) {
-            return [
-              <HeaderSyncChipWrapper key="cloud-sync-chip">
-                <CloudSyncStatusChip
-                  component={RouterLink}
-                  to="/setting"
-                  clickable
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Tabs
+          value={currentTab}
+          sx={(theme) => ({
+            flex: 1,
+            '& .MuiTab-root': {
+              p: 1,
+              minWidth: 'auto',
+              minHeight: 'auto',
+            },
+            '& .MuiTab-root:hover': {
+              transition: 'background-color 0.5s ease',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+            },
+            '& .Mui-selected': {
+              backgroundImage: `linear-gradient(to top, ${theme.palette.brand500.main}, ${theme.palette.neutral700.main})`,
+              color: `${theme.palette.neutral100.main} !important`,
+              textShadow:
+                '0.25px 0 0 currentColor, -0.25px 0 0 currentColor, 0 0.25px 0 currentColor, 0 -0.25px 0',
+            },
+          })}
+        >
+          <Tab
+            value=""
+            component={RouterLink}
+            to="/"
+            label={
+              <Box display="flex" alignItems="center">
+                <Avatar
+                  src={silly ? silly_icon : go_icon}
+                  variant="rounded"
+                  sx={(theme) => ({
+                    height: '24px',
+                    width: '24px',
+                    boxShadow: `0 0 10px 1px ${theme.palette.brand500.main}`,
+                  })}
                 />
-              </HeaderSyncChipWrapper>,
-              tab,
-            ]
-          }
-
-          return tab
-        })}
-      </Tabs>
+                <Typography variant="h6" sx={{ px: 1, fontWeight: 'Normal' }}>
+                  {t(silly ? 'sillyPageTitle' : 'pageTitle')}
+                </Typography>
+                {shouldShowDevComponents && (
+                  <Typography variant="body1">(Dev Mode)</Typography>
+                )}
+              </Box>
+            }
+          />
+          {maincontent.map(({ i18Key, value, to, icon, textSuffix }) => {
+            const tooltipIcon = isXL ? (
+              icon
+            ) : (
+              <Tooltip key={value} arrow title={t(i18Key)}>
+                {icon as JSX.Element}
+              </Tooltip>
+            )
+            return (
+              <Tab
+                key={value}
+                value={value}
+                component={RouterLink}
+                to={to}
+                icon={tooltipIcon as ReactElement}
+                iconPosition="start"
+                label={
+                  isXL || textSuffix ? (
+                    <Box display="flex" gap={0.5} alignItems="center">
+                      {isXL && <Typography>{t(i18Key)}</Typography>}
+                      {textSuffix}
+                    </Box>
+                  ) : undefined
+                }
+                sx={{ ml: value === 'setting' ? 'auto' : undefined }}
+              />
+            )
+          })}
+        </Tabs>
+        {/* Cloud chip lives outside <Tabs> — no MUI Tab prop leakage */}
+        {session && (
+          <Box sx={{ mx: 1, display: 'flex', alignItems: 'center' }}>
+            <CloudSyncStatusChip
+              component={RouterLink}
+              to="/setting"
+              clickable
+            />
+          </Box>
+        )}
+      </Box>
     </AppBar>
   )
 }
@@ -345,7 +297,7 @@ function MobileHeader({
     setMobileOpen(!mobileOpen)
   }
 
-  const { t } = useTranslation(['ui', 'settings'])
+  const { t } = useTranslation('ui')
   const { silly } = useContext(SillyContext)
   const { session } = useCloudSync()
 
