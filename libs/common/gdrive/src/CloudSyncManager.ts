@@ -1,6 +1,6 @@
 import debounce from 'lodash.debounce'
-import { buildConflictComparison } from './conflict'
 import type { MultiSlotDataAdapter } from './adapter'
+import { buildConflictComparison } from './conflict'
 import type { GoogleDriveApiClient } from './GoogleDriveApiClient'
 import type { GoogleIdentityClient } from './GoogleIdentityClient'
 import type {
@@ -13,8 +13,14 @@ import type {
 
 export const SYNC_METADATA_STORAGE_KEY = 'gdrive_sync_metadata'
 
+export const DEFAULT_SYNC_DEBOUNCE_MS = 3000
+export const DEFAULT_SYNC_MAX_WAIT_MS = 6000
+export const DEFAULT_DEBOUNCE_MS = DEFAULT_SYNC_DEBOUNCE_MS
+export const DEFAULT_MAX_WAIT_MS = DEFAULT_SYNC_MAX_WAIT_MS
+
 export interface CloudSyncManagerOptions {
   debounceMs?: number | undefined
+  maxWaitMs?: number | undefined
   syncFileName?: string | undefined
 }
 
@@ -24,6 +30,7 @@ export class CloudSyncManager {
   private adapter: MultiSlotDataAdapter | null = null
 
   private debounceMs: number
+  private maxWaitMs: number
   private syncFileName: string
   private debouncedSyncFn: (() => void) & {
     cancel: () => void
@@ -48,7 +55,8 @@ export class CloudSyncManager {
   ) {
     this.identityClient = identityClient
     this.driveClient = driveClient
-    this.debounceMs = options.debounceMs ?? 10000
+    this.debounceMs = options.debounceMs ?? DEFAULT_SYNC_DEBOUNCE_MS
+    this.maxWaitMs = options.maxWaitMs ?? DEFAULT_SYNC_MAX_WAIT_MS
     this.syncFileName = options.syncFileName ?? 'genshin_optimizer_sync.json'
 
     this.state = this.loadCachedMetadata() ?? {
@@ -61,11 +69,15 @@ export class CloudSyncManager {
       errorMessage: null,
     }
 
-    this.debouncedSyncFn = debounce(() => {
-      this.sync().catch((err) => {
-        console.error('[CloudSync] Debounced sync failed:', err)
-      })
-    }, this.debounceMs)
+    this.debouncedSyncFn = debounce(
+      () => {
+        this.sync().catch((err) => {
+          console.error('[CloudSync] Debounced sync failed:', err)
+        })
+      },
+      this.debounceMs,
+      { maxWait: this.maxWaitMs }
+    )
   }
 
   public setAdapter(adapter: MultiSlotDataAdapter): void {
@@ -174,7 +186,7 @@ export class CloudSyncManager {
   }
 
   /**
-   * Called when local database data changes. Starts/resets 10s debounce timer.
+   * Called when local database data changes. Starts/resets debounced sync timer.
    */
   public notifyDataChanged(_reason?: string): void {
     if (this.isApplyingRemote) {

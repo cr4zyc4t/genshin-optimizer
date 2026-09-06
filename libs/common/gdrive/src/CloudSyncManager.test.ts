@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { CloudSyncManager } from './CloudSyncManager'
+import {
+  CloudSyncManager,
+  DEFAULT_SYNC_DEBOUNCE_MS,
+  DEFAULT_SYNC_MAX_WAIT_MS,
+} from './CloudSyncManager'
 import { GoogleIdentityClient } from './GoogleIdentityClient'
 import { GoogleDriveApiClient } from './GoogleDriveApiClient'
 import type { MultiSlotDataAdapter } from './adapter'
@@ -81,9 +85,7 @@ describe('CloudSyncManager', () => {
       isLocalEmpty: vi.fn().mockReturnValue(false),
     }
 
-    syncManager = new CloudSyncManager(identityClient, driveClient, {
-      debounceMs: 10000,
-    })
+    syncManager = new CloudSyncManager(identityClient, driveClient)
     syncManager.setAdapter(adapter)
   })
 
@@ -92,7 +94,12 @@ describe('CloudSyncManager', () => {
     vi.useRealTimers()
   })
 
-  it('debounces local data mutations by 10 seconds before initiating sync', async () => {
+  it('exports default constants of 2s debounce and 6s maxWait', () => {
+    expect(DEFAULT_SYNC_DEBOUNCE_MS).toBe(2000)
+    expect(DEFAULT_SYNC_MAX_WAIT_MS).toBe(6000)
+  })
+
+  it('debounces local data mutations by 2 seconds before initiating sync', async () => {
     vi.spyOn(driveClient, 'findFile').mockResolvedValue(null)
     vi.spyOn(driveClient, 'createFile').mockResolvedValue({
       id: 'file-1',
@@ -103,18 +110,42 @@ describe('CloudSyncManager', () => {
     syncManager.notifyDataChanged()
     expect(syncManager.getState().status).toBe('DEBOUNCING')
 
-    // Advance 5 seconds - should still be debouncing
-    vi.advanceTimersByTime(5000)
+    // Advance 1 second - should still be debouncing
+    vi.advanceTimersByTime(1000)
     expect(syncManager.getState().status).toBe('DEBOUNCING')
     expect(driveClient.findFile).not.toHaveBeenCalled()
 
     // Another edit resets timer
     syncManager.notifyDataChanged()
-    vi.advanceTimersByTime(5000)
+    vi.advanceTimersByTime(1000)
     expect(driveClient.findFile).not.toHaveBeenCalled()
 
-    // Advance remaining 5 seconds (total 10s from second edit)
-    await vi.advanceTimersByTimeAsync(5000)
+    // Advance remaining 1 second (total 2s from second edit)
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(driveClient.findFile).toHaveBeenCalled()
+    expect(driveClient.createFile).toHaveBeenCalled()
+    expect(syncManager.getState().status).toBe('IDLE')
+  })
+
+  it('triggers sync after maxWait (6s) when mutations occur frequently without 2s pause', async () => {
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue(null)
+    vi.spyOn(driveClient, 'createFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z',
+    })
+
+    // Simulate frequent changes every 500ms for 5.5s (11 edits)
+    for (let i = 0; i < 11; i++) {
+      syncManager.notifyDataChanged()
+      vi.advanceTimersByTime(500)
+      expect(driveClient.findFile).not.toHaveBeenCalled()
+      expect(syncManager.getState().status).toBe('DEBOUNCING')
+    }
+
+    // Advance remaining 500ms to reach 6000ms (DEFAULT_SYNC_MAX_WAIT_MS)
+    await vi.advanceTimersByTimeAsync(500)
 
     expect(driveClient.findFile).toHaveBeenCalled()
     expect(driveClient.createFile).toHaveBeenCalled()
@@ -198,7 +229,7 @@ describe('CloudSyncManager', () => {
     expect(syncManager.getState().isLocalDirty).toBe(true)
 
     // Advance debounce
-    await vi.advanceTimersByTimeAsync(10000)
+    await vi.advanceTimersByTimeAsync(2000)
 
     expect(syncManager.getState().status).toBe('CONFLICT')
     expect(syncManager.getActiveConflict()).not.toBeNull()

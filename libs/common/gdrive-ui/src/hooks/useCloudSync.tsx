@@ -2,6 +2,8 @@ import {
   type CloudAccountSession,
   CloudSyncManager,
   type ConflictComparison,
+  DEFAULT_SYNC_DEBOUNCE_MS,
+  DEFAULT_SYNC_MAX_WAIT_MS,
   GoogleDriveApiClient,
   type MultiSlotDataAdapter,
   type SyncRuntimeMetadata,
@@ -17,10 +19,13 @@ import {
 } from 'react'
 import { useCloudAuth } from './useCloudAuth'
 
+export { DEFAULT_SYNC_DEBOUNCE_MS, DEFAULT_SYNC_MAX_WAIT_MS }
+
 export interface UseCloudSyncOptions {
   clientId: string
   adapter: MultiSlotDataAdapter
   debounceMs?: number | undefined
+  maxWaitMs?: number | undefined
   syncFileName?: string | undefined
 }
 
@@ -42,7 +47,7 @@ export const CloudSyncContext = createContext<UseCloudSyncReturn | null>(null)
 export function useCloudSyncInstance(
   options: UseCloudSyncOptions
 ): UseCloudSyncReturn {
-  const { clientId, adapter, debounceMs, syncFileName } = options
+  const { clientId, adapter, debounceMs, maxWaitMs, syncFileName } = options
 
   const auth = useCloudAuth(clientId)
   const driveClient = useMemo(() => new GoogleDriveApiClient(), [])
@@ -54,11 +59,12 @@ export function useCloudSyncInstance(
   const syncManager = useMemo(() => {
     const mgr = new CloudSyncManager(auth.client, driveClient, {
       debounceMs,
+      maxWaitMs,
       syncFileName,
     })
     mgr.setAdapter(adapter)
     return mgr
-  }, [auth.client, driveClient, debounceMs, syncFileName])
+  }, [auth.client, driveClient, debounceMs, maxWaitMs, syncFileName])
 
   const [syncState, setSyncState] = useState<SyncRuntimeMetadata>(() =>
     syncManager.getState()
@@ -123,18 +129,21 @@ export function CloudSyncProvider({
   clientId,
   adapter,
   debounceMs,
+  maxWaitMs,
   syncFileName,
 }: {
   children: ReactNode
   clientId: string
   adapter: MultiSlotDataAdapter
   debounceMs?: number | undefined
+  maxWaitMs?: number | undefined
   syncFileName?: string | undefined
 }) {
   const value = useCloudSyncInstance({
     clientId,
     adapter,
     debounceMs,
+    maxWaitMs,
     syncFileName,
   })
 
