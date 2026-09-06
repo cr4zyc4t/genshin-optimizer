@@ -105,8 +105,14 @@ export function useCloudSyncInstance(
     await syncManager.resolveWithCloud()
   }, [syncManager])
 
+  useEffect(() => {
+    if (!auth.session && syncManager.getState().status !== 'UNAUTHENTICATED') {
+      syncManager.clearSession()
+    }
+  }, [syncManager, auth.session])
+
   const handleLogout = useCallback(async () => {
-    syncManager.stop()
+    syncManager.clearSession()
     await auth.logout()
   }, [syncManager, auth])
 

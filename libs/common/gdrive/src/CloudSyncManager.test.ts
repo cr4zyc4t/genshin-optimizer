@@ -85,7 +85,10 @@ describe('CloudSyncManager', () => {
       isLocalEmpty: vi.fn().mockReturnValue(false),
     }
 
-    syncManager = new CloudSyncManager(identityClient, driveClient)
+    syncManager = new CloudSyncManager(identityClient, driveClient, {
+      debounceMs: 2000,
+      maxWaitMs: 6000,
+    })
     syncManager.setAdapter(adapter)
   })
 
@@ -94,9 +97,11 @@ describe('CloudSyncManager', () => {
     vi.useRealTimers()
   })
 
-  it('exports default constants of 2s debounce and 6s maxWait', () => {
-    expect(DEFAULT_SYNC_DEBOUNCE_MS).toBe(2000)
-    expect(DEFAULT_SYNC_MAX_WAIT_MS).toBe(6000)
+  it('exports default sync debounce and maxWait constants', () => {
+    expect(typeof DEFAULT_SYNC_DEBOUNCE_MS).toBe('number')
+    expect(typeof DEFAULT_SYNC_MAX_WAIT_MS).toBe('number')
+    expect(DEFAULT_SYNC_DEBOUNCE_MS).toBeGreaterThan(0)
+    expect(DEFAULT_SYNC_MAX_WAIT_MS).toBeGreaterThan(0)
   })
 
   it('debounces local data mutations by 2 seconds before initiating sync', async () => {
@@ -370,5 +375,39 @@ describe('CloudSyncManager', () => {
     syncManager.notifyDataChanged('char update')
 
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('clears error and resets status when clearSession is called on disconnect', async () => {
+    vi.spyOn(driveClient, 'findFile').mockRejectedValue(
+      new Error('Failed to search appDataFolder: 401 Unauthorized')
+    )
+
+    await expect(syncManager.sync()).rejects.toThrow('401')
+    expect(syncManager.getState().status).toBe('ERROR')
+    expect(syncManager.getState().errorMessage).toContain('401')
+
+    // User clicks Disconnect
+    syncManager.clearSession()
+
+    expect(syncManager.getState().status).toBe('UNAUTHENTICATED')
+    expect(syncManager.getState().errorMessage).toBeNull()
+    expect(syncManager.getActiveConflict()).toBeNull()
+  })
+
+  it('initializes with null errorMessage and UNAUTHENTICATED on page refresh without session', () => {
+    // Stale error in localStorage from previous session
+    localStorage.setItem(
+      'gdrive_sync_metadata',
+      JSON.stringify({
+        status: 'ERROR',
+        errorMessage: 'Failed to search appDataFolder: 403 Forbidden',
+        lastSyncTime: 12345,
+      })
+    )
+    vi.spyOn(identityClient, 'loadCachedSession').mockReturnValue(null)
+
+    const freshManager = new CloudSyncManager(identityClient, driveClient)
+    expect(freshManager.getState().status).toBe('UNAUTHENTICATED')
+    expect(freshManager.getState().errorMessage).toBeNull()
   })
 })

@@ -83,7 +83,7 @@ export function CloudSyncCard() {
         <Divider />
         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {authError && <Alert severity="error">{authError}</Alert>}
-          {syncState.errorMessage && (
+          {session && syncState.errorMessage && (
             <Alert severity="error">{syncState.errorMessage}</Alert>
           )}
 
