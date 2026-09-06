@@ -37,15 +37,34 @@ jobs:
           token: ${{ github.token }}
           ref: gh-pages
           path: gh-pages
+      - name: Check if deployment exists
+        id: check-deploy
+        run: |
+          DEPLOY_PATH="${{ steps.build-info.outputs.deploy_path }}"
+          if [ -n "$DEPLOY_PATH" ] && [ "$DEPLOY_PATH" != "/" ] && [ "$DEPLOY_PATH" != "." ] && [ -d "gh-pages/$DEPLOY_PATH" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Deployment directory 'gh-pages/$DEPLOY_PATH' does not exist. Skipping removal."
+          fi
       - name: Make commit to deploy
+        id: commit-deploy
+        if: steps.check-deploy.outputs.exists == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config pull.rebase false
-          git rm -r ./${{ steps.build-info.outputs.deploy_path }}
-          git commit -m "clean ${{ steps.build-info.outputs.deploy_path }}"
+          git rm -rf --ignore-unmatch ./${{ steps.build-info.outputs.deploy_path }}
+          rm -rf ./${{ steps.build-info.outputs.deploy_path }}
+          if ! git diff --cached --quiet; then
+            git commit -m "clean ${{ steps.build-info.outputs.deploy_path }}"
+            echo "committed=true" >> $GITHUB_OUTPUT
+          else
+            echo "committed=false" >> $GITHUB_OUTPUT
+          fi
         working-directory: gh-pages
       - name: Push commit
+        if: steps.check-deploy.outputs.exists == 'true' && steps.commit-deploy.outputs.committed == 'true'
         uses: nick-fields/retry@v2
         with:
           max_attempts: 4
@@ -58,13 +77,15 @@ jobs:
         id: output-date
         run: echo "date=$(date -u)" >> $GITHUB_OUTPUT
       - name: Find Comment
+        if: github.event_name != 'workflow_dispatch'
         uses: peter-evans/find-comment@v3
         id: fc
         with:
           issue-number: ${{ steps.build-info.outputs.deploy_path }}
           comment-author: 'github-actions[bot]'
           body-includes: Deployed
-      - name: Create or update comment
+      - name: Update comment
+        if: github.event_name != 'workflow_dispatch' && steps.fc.outputs.comment-id != ''
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
