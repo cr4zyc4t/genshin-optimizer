@@ -7,7 +7,7 @@ Generic, reusable Google Drive cloud synchronization engine for game optimizers.
 This library provides a client-side, zero-backend cloud synchronization system using:
 - **Google Identity Services (GIS)** for OAuth 2.0 authentication and non-interactive silent token refresh.
 - **Google Drive REST API v3** targeting the user's hidden Application Data Folder (`appDataFolder`) with least-privilege `drive.appdata` scope.
-- **Debounced Mutations** (default 10s via `lodash.debounce`) to prevent network congestion.
+- **Debounced Mutations** (default 5s wait, 8s maxWait via `lodash.debounce`) to prevent network congestion.
 - **Three-Way Conflict Detection** with size & item disparity calculation heuristics.
 
 ## Architecture

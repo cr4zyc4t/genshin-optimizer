@@ -88,8 +88,5 @@ export function buildConflictComparison(
       slots: cloudSummaries,
     },
     hasSevereDisparity,
-    disparityWarningText: hasSevereDisparity
-      ? 'Caution: One version has substantially less data than the other.'
-      : undefined,
   }
 }

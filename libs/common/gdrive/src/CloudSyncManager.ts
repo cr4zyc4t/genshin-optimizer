@@ -1,6 +1,6 @@
 import debounce from 'lodash.debounce'
-import { buildConflictComparison } from './conflict'
 import type { MultiSlotDataAdapter } from './adapter'
+import { buildConflictComparison } from './conflict'
 import type { GoogleDriveApiClient } from './GoogleDriveApiClient'
 import type { GoogleIdentityClient } from './GoogleIdentityClient'
 import type {
@@ -13,8 +13,14 @@ import type {
 
 export const SYNC_METADATA_STORAGE_KEY = 'gdrive_sync_metadata'
 
+export const DEFAULT_SYNC_DEBOUNCE_MS = 5000
+export const DEFAULT_SYNC_MAX_WAIT_MS = 8000
+export const DEFAULT_DEBOUNCE_MS = DEFAULT_SYNC_DEBOUNCE_MS
+export const DEFAULT_MAX_WAIT_MS = DEFAULT_SYNC_MAX_WAIT_MS
+
 export interface CloudSyncManagerOptions {
   debounceMs?: number | undefined
+  maxWaitMs?: number | undefined
   syncFileName?: string | undefined
 }
 
@@ -24,6 +30,7 @@ export class CloudSyncManager {
   private adapter: MultiSlotDataAdapter | null = null
 
   private debounceMs: number
+  private maxWaitMs: number
   private syncFileName: string
   private debouncedSyncFn: (() => void) & {
     cancel: () => void
@@ -48,24 +55,51 @@ export class CloudSyncManager {
   ) {
     this.identityClient = identityClient
     this.driveClient = driveClient
-    this.debounceMs = options.debounceMs ?? 10000
+    this.debounceMs = options.debounceMs ?? DEFAULT_SYNC_DEBOUNCE_MS
+    this.maxWaitMs = options.maxWaitMs ?? DEFAULT_SYNC_MAX_WAIT_MS
     this.syncFileName = options.syncFileName ?? 'genshin_optimizer_sync.json'
 
-    this.state = this.loadCachedMetadata() ?? {
-      status: 'UNAUTHENTICATED',
-      lastSyncTime: null,
-      remoteFileId: null,
-      remoteModifiedTime: null,
-      lastRemoteHash: null,
-      isLocalDirty: false,
-      errorMessage: null,
+    const cachedSession = this.identityClient.loadCachedSession()
+    const cachedMetadata = this.loadCachedMetadata()
+
+    if (!cachedSession) {
+      this.state = {
+        status: 'UNAUTHENTICATED',
+        lastSyncTime: cachedMetadata?.lastSyncTime ?? null,
+        remoteFileId: null,
+        remoteModifiedTime: null,
+        lastRemoteHash: null,
+        isLocalDirty: false,
+        errorMessage: null,
+      }
+      if (
+        cachedMetadata &&
+        (cachedMetadata.errorMessage ||
+          cachedMetadata.status !== 'UNAUTHENTICATED')
+      ) {
+        this.saveCachedMetadata(this.state)
+      }
+    } else {
+      this.state = cachedMetadata ?? {
+        status: 'UNAUTHENTICATED',
+        lastSyncTime: null,
+        remoteFileId: null,
+        remoteModifiedTime: null,
+        lastRemoteHash: null,
+        isLocalDirty: false,
+        errorMessage: null,
+      }
     }
 
-    this.debouncedSyncFn = debounce(() => {
-      this.sync().catch((err) => {
-        console.error('[CloudSync] Debounced sync failed:', err)
-      })
-    }, this.debounceMs)
+    this.debouncedSyncFn = debounce(
+      () => {
+        this.sync().catch((err) => {
+          console.error('[CloudSync] Debounced sync failed:', err)
+        })
+      },
+      this.debounceMs,
+      { maxWait: this.maxWaitMs }
+    )
   }
 
   public setAdapter(adapter: MultiSlotDataAdapter): void {
@@ -174,7 +208,25 @@ export class CloudSyncManager {
   }
 
   /**
-   * Called when local database data changes. Starts/resets 10s debounce timer.
+   * Resets sync state, clears error messages, and removes cached sync metadata.
+   * Called when user logs out or disconnects cloud sync.
+   */
+  public clearSession(): void {
+    this.stop()
+    this.clearCachedMetadata()
+    this.updateState({
+      status: 'UNAUTHENTICATED',
+      errorMessage: null,
+      remoteFileId: null,
+      remoteModifiedTime: null,
+      lastRemoteHash: null,
+      isLocalDirty: false,
+    })
+    this.updateConflict(null)
+  }
+
+  /**
+   * Called when local database data changes. Starts/resets debounced sync timer.
    */
   public notifyDataChanged(_reason?: string): void {
     if (this.isApplyingRemote) {
@@ -183,8 +235,11 @@ export class CloudSyncManager {
 
     const session = this.identityClient.loadCachedSession()
     if (!session) {
-      if (this.state.status !== 'UNAUTHENTICATED') {
-        this.updateState({ status: 'UNAUTHENTICATED' })
+      if (
+        this.state.status !== 'UNAUTHENTICATED' ||
+        this.state.errorMessage !== null
+      ) {
+        this.updateState({ status: 'UNAUTHENTICATED', errorMessage: null })
       }
       return
     }
@@ -204,8 +259,11 @@ export class CloudSyncManager {
   public async handleWindowFocus(): Promise<void> {
     const session = this.identityClient.loadCachedSession()
     if (!session) {
-      if (this.state.status !== 'UNAUTHENTICATED') {
-        this.updateState({ status: 'UNAUTHENTICATED' })
+      if (
+        this.state.status !== 'UNAUTHENTICATED' ||
+        this.state.errorMessage !== null
+      ) {
+        this.updateState({ status: 'UNAUTHENTICATED', errorMessage: null })
       }
       return
     }
@@ -227,8 +285,11 @@ export class CloudSyncManager {
 
     let session = this.identityClient.loadCachedSession()
     if (!session) {
-      if (this.state.status !== 'UNAUTHENTICATED') {
-        this.updateState({ status: 'UNAUTHENTICATED' })
+      if (
+        this.state.status !== 'UNAUTHENTICATED' ||
+        this.state.errorMessage !== null
+      ) {
+        this.updateState({ status: 'UNAUTHENTICATED', errorMessage: null })
       }
       return
     }
@@ -427,7 +488,7 @@ export class CloudSyncManager {
 
     let session = this.identityClient.loadCachedSession()
     if (!session) {
-      this.updateState({ status: 'UNAUTHENTICATED' })
+      this.updateState({ status: 'UNAUTHENTICATED', errorMessage: null })
       return
     }
 
@@ -495,7 +556,7 @@ export class CloudSyncManager {
 
     let session = this.identityClient.loadCachedSession()
     if (!session) {
-      this.updateState({ status: 'UNAUTHENTICATED' })
+      this.updateState({ status: 'UNAUTHENTICATED', errorMessage: null })
       return
     }
 
@@ -581,6 +642,15 @@ export class CloudSyncManager {
       localStorage.setItem(SYNC_METADATA_STORAGE_KEY, JSON.stringify(metadata))
     } catch (e) {
       console.error('Failed to save sync metadata to localStorage', e)
+    }
+  }
+
+  private clearCachedMetadata(): void {
+    if (typeof localStorage === 'undefined') return
+    try {
+      localStorage.removeItem(SYNC_METADATA_STORAGE_KEY)
+    } catch (e) {
+      console.error('Failed to clear sync metadata from localStorage', e)
     }
   }
 }
