@@ -265,6 +265,7 @@ function DesktopHeader({
               component={RouterLink}
               to="/setting"
               clickable
+              iconOnly
             />
           </Box>
         )}
@@ -420,6 +421,7 @@ function MobileHeader({
                 component={RouterLink}
                 to="/setting"
                 clickable
+                iconOnly
               />
             </Box>
           )}

@@ -157,4 +157,66 @@ describe('CloudSyncStatusChip', () => {
 
     expect(handleRegularClick).toHaveBeenCalledTimes(1)
   })
+
+  it('does not show pending sync status when DEBOUNCING by default (renders idle state)', () => {
+    vi.spyOn(useCloudSyncModule, 'useCloudSync').mockReturnValue({
+      session: mockSession,
+      isAuthLoading: false,
+      authError: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+      syncState: { ...baseSyncState, status: 'DEBOUNCING' },
+      activeConflict: null,
+      syncNow: vi.fn(),
+      forceUpload: vi.fn(),
+      resolveWithCloud: vi.fn(),
+    })
+
+    render(<CloudSyncStatusChip />)
+    expect(screen.getByText('settings:cloudSync.status.idle')).toBeDefined()
+    expect(
+      screen.queryByText('settings:cloudSync.status.debouncing')
+    ).toBeNull()
+  })
+
+  it('shows pending sync status when showPendingSync is true and DEBOUNCING', () => {
+    vi.spyOn(useCloudSyncModule, 'useCloudSync').mockReturnValue({
+      session: mockSession,
+      isAuthLoading: false,
+      authError: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+      syncState: { ...baseSyncState, status: 'DEBOUNCING' },
+      activeConflict: null,
+      syncNow: vi.fn(),
+      forceUpload: vi.fn(),
+      resolveWithCloud: vi.fn(),
+    })
+
+    render(<CloudSyncStatusChip showPendingSync />)
+    expect(
+      screen.getByText('settings:cloudSync.status.debouncing')
+    ).toBeDefined()
+  })
+
+  it('renders icon only with no text and accessible aria-label when iconOnly is true', () => {
+    vi.spyOn(useCloudSyncModule, 'useCloudSync').mockReturnValue({
+      session: mockSession,
+      isAuthLoading: false,
+      authError: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+      syncState: { ...baseSyncState, status: 'IDLE' },
+      activeConflict: null,
+      syncNow: vi.fn(),
+      forceUpload: vi.fn(),
+      resolveWithCloud: vi.fn(),
+    })
+
+    render(<CloudSyncStatusChip iconOnly />)
+    expect(screen.queryByText('settings:cloudSync.status.idle')).toBeNull()
+    expect(
+      screen.getByLabelText('settings:cloudSync.status.idle')
+    ).toBeDefined()
+  })
 })

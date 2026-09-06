@@ -13,8 +13,8 @@ import type {
 
 export const SYNC_METADATA_STORAGE_KEY = 'gdrive_sync_metadata'
 
-export const DEFAULT_SYNC_DEBOUNCE_MS = 3000
-export const DEFAULT_SYNC_MAX_WAIT_MS = 6000
+export const DEFAULT_SYNC_DEBOUNCE_MS = 5000
+export const DEFAULT_SYNC_MAX_WAIT_MS = 8000
 export const DEFAULT_DEBOUNCE_MS = DEFAULT_SYNC_DEBOUNCE_MS
 export const DEFAULT_MAX_WAIT_MS = DEFAULT_SYNC_MAX_WAIT_MS
 
