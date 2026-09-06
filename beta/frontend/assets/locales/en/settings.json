@@ -85,6 +85,15 @@
       "error": "Sync Error",
       "expired": "Session Expired"
     },
+    "statusTooltip": {
+      "unauthenticated": "Google Drive: Not connected",
+      "idle": "Google Drive: Synced",
+      "idleWithTime": "Google Drive: Synced (Last: {{time}})",
+      "debouncing": "Google Drive: Pending changes (syncing in 10s)",
+      "syncing": "Google Drive: Syncing data...",
+      "conflict": "Google Drive: Conflict detected between local and cloud data",
+      "error": "Google Drive: Synchronization error"
+    },
     "lastSync": "Last Sync: {{time}}",
     "neverSynced": "Last Sync: Never",
     "resolveConflict": "Resolve Conflict",
@@ -97,6 +106,9 @@
     "cloudTitle": "Google Drive Backup",
     "modified": "Last Modified: {{time}}",
     "size": "Size: {{size}}",
+    "slotTitle": "Slot {{slotNum}}: {{name}}",
+    "defaultSlotName": "Database {{slotNum}}",
+    "slotDetails": "Characters: {{characters}} | Artifacts: {{artifacts}} | Weapons: {{weapons}}",
     "disparityAlert": "Caution: One version has substantially less data than the other. Choosing the smaller version may cause irreversible loss of characters or artifacts.",
     "keepLocal": "Keep Local Data (Upload to Cloud)",
     "useCloud": "Use Cloud Data (Overwrite Local)",
