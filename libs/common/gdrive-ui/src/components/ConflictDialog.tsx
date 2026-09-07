@@ -48,6 +48,8 @@ export function ConflictDialog({
   if (!conflictData) return null
 
   const { local, cloud, hasSevereDisparity } = conflictData
+  const isLocalNewer = local.timestamp > cloud.timestamp
+  const isCloudNewer = cloud.timestamp > local.timestamp
 
   return (
     <Dialog
@@ -89,6 +91,18 @@ export function ConflictDialog({
                   {t('settings:conflictDialog.modified', {
                     time: new Date(local.timestamp).toLocaleString(),
                   })}
+                  {local.timestamp !== cloud.timestamp && (
+                    <Box
+                      component="span"
+                      sx={{
+                        color: isLocalNewer ? 'success.main' : 'error.main',
+                        fontWeight: 'bold',
+                        ml: 1,
+                      }}
+                    >
+                      {isLocalNewer ? 'NEW' : 'OLD'}
+                    </Box>
+                  )}
                 </Typography>
                 <Typography variant="body2">
                   {t('settings:conflictDialog.size', {
@@ -146,6 +160,18 @@ export function ConflictDialog({
                   {t('settings:conflictDialog.modified', {
                     time: new Date(cloud.timestamp).toLocaleString(),
                   })}
+                  {local.timestamp !== cloud.timestamp && (
+                    <Box
+                      component="span"
+                      sx={{
+                        color: isCloudNewer ? 'success.main' : 'error.main',
+                        fontWeight: 'bold',
+                        ml: 1,
+                      }}
+                    >
+                      {isCloudNewer ? 'NEW' : 'OLD'}
+                    </Box>
+                  )}
                 </Typography>
                 <Typography variant="body2">
                   {t('settings:conflictDialog.size', {
