@@ -17,11 +17,13 @@ export const DEFAULT_SYNC_DEBOUNCE_MS = 5000
 export const DEFAULT_SYNC_MAX_WAIT_MS = 8000
 export const DEFAULT_DEBOUNCE_MS = DEFAULT_SYNC_DEBOUNCE_MS
 export const DEFAULT_MAX_WAIT_MS = DEFAULT_SYNC_MAX_WAIT_MS
+export const DEFAULT_FOCUS_THROTTLE_MS = 60000
 
 export interface CloudSyncManagerOptions {
   debounceMs?: number | undefined
   maxWaitMs?: number | undefined
   syncFileName?: string | undefined
+  focusThrottleMs?: number | undefined
 }
 
 export class CloudSyncManager {
@@ -31,6 +33,7 @@ export class CloudSyncManager {
 
   private debounceMs: number
   private maxWaitMs: number
+  private focusThrottleMs: number
   private syncFileName: string
   private debouncedSyncFn: (() => void) & {
     cancel: () => void
@@ -47,6 +50,8 @@ export class CloudSyncManager {
   private unsubscribeDbChanges: (() => void) | null = null
   private focusHandler: (() => void) | null = null
   private isApplyingRemote = false
+  private inFlightSync: Promise<void> | null = null
+  private lastFocusSyncTime = 0
 
   constructor(
     identityClient: GoogleIdentityClient,
@@ -57,6 +62,7 @@ export class CloudSyncManager {
     this.driveClient = driveClient
     this.debounceMs = options.debounceMs ?? DEFAULT_SYNC_DEBOUNCE_MS
     this.maxWaitMs = options.maxWaitMs ?? DEFAULT_SYNC_MAX_WAIT_MS
+    this.focusThrottleMs = options.focusThrottleMs ?? DEFAULT_FOCUS_THROTTLE_MS
     this.syncFileName = options.syncFileName ?? 'genshin_optimizer_sync.json'
 
     const cachedSession = this.identityClient.loadCachedSession()
@@ -214,6 +220,7 @@ export class CloudSyncManager {
   public clearSession(): void {
     this.stop()
     this.clearCachedMetadata()
+    this.lastFocusSyncTime = 0
     this.updateState({
       status: 'UNAUTHENTICATED',
       errorMessage: null,
@@ -254,7 +261,8 @@ export class CloudSyncManager {
   }
 
   /**
-   * Triggered on initial window focus in session.
+   * Triggered on window focus in session.
+   * Guarded against in-flight syncs and throttled by focusThrottleMs (default 60s).
    */
   public async handleWindowFocus(): Promise<void> {
     const session = this.identityClient.loadCachedSession()
@@ -272,13 +280,43 @@ export class CloudSyncManager {
       return
     }
 
+    // In-flight guard: skip if a sync is already running
+    if (this.inFlightSync || this.state.status === 'SYNCING') {
+      return
+    }
+
+    // Throttle check: skip if last focus sync occurred within throttle window
+    const now = Date.now()
+    if (now - this.lastFocusSyncTime < this.focusThrottleMs) {
+      return
+    }
+    this.lastFocusSyncTime = now
+
     await this.sync()
   }
 
   /**
    * Core synchronization operation.
+   * Guarded against concurrent in-flight executions.
    */
   public async sync(): Promise<void> {
+    if (this.inFlightSync) {
+      return this.inFlightSync
+    }
+
+    const syncPromise = this.performSync()
+    this.inFlightSync = syncPromise
+
+    try {
+      await syncPromise
+    } finally {
+      if (this.inFlightSync === syncPromise) {
+        this.inFlightSync = null
+      }
+    }
+  }
+
+  private async performSync(): Promise<void> {
     if (!this.adapter) {
       return
     }
