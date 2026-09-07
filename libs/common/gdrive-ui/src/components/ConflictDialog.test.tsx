@@ -95,6 +95,28 @@ describe('ConflictDialog', () => {
     ).toBeDefined()
     expect(screen.getByText('settings:conflictDialog.localTitle')).toBeDefined()
     expect(screen.getByText('settings:conflictDialog.cloudTitle')).toBeDefined()
+    expect(screen.getByText('NEW')).toBeDefined()
+    expect(screen.getByText('OLD')).toBeDefined()
+  })
+
+  it('renders NEW for newer version and OLD for older version', () => {
+    // Cloud is newer
+    const cloudNewerConflict: ConflictComparison = {
+      ...mockConflict,
+      local: { ...mockConflict.local, timestamp: 1000 },
+      cloud: { ...mockConflict.cloud, timestamp: 2000 },
+    }
+    render(
+      <ConflictDialog
+        open={true}
+        conflictData={cloudNewerConflict}
+        onKeepLocal={vi.fn()}
+        onUseCloud={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+    expect(screen.getByText('NEW')).toBeDefined()
+    expect(screen.getByText('OLD')).toBeDefined()
   })
 
   it('invokes onKeepLocal when clicking Keep Local Data', () => {
