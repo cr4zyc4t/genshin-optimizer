@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import {
   CloudSyncManager,
+  DEFAULT_FOCUS_THROTTLE_MS,
   DEFAULT_SYNC_DEBOUNCE_MS,
   DEFAULT_SYNC_MAX_WAIT_MS,
 } from './CloudSyncManager'
@@ -97,11 +98,12 @@ describe('CloudSyncManager', () => {
     vi.useRealTimers()
   })
 
-  it('exports default sync debounce and maxWait constants', () => {
+  it('exports default sync debounce, maxWait, and focus throttle constants', () => {
     expect(typeof DEFAULT_SYNC_DEBOUNCE_MS).toBe('number')
     expect(typeof DEFAULT_SYNC_MAX_WAIT_MS).toBe('number')
     expect(DEFAULT_SYNC_DEBOUNCE_MS).toBeGreaterThan(0)
     expect(DEFAULT_SYNC_MAX_WAIT_MS).toBeGreaterThan(0)
+    expect(DEFAULT_FOCUS_THROTTLE_MS).toBe(60000)
   })
 
   it('debounces local data mutations by 2 seconds before initiating sync', async () => {
@@ -169,6 +171,97 @@ describe('CloudSyncManager', () => {
 
     expect(driveClient.findFile).toHaveBeenCalled()
     expect(syncManager.getState().status).toBe('IDLE')
+  })
+
+  it('throttles window focus sync by 60 seconds', async () => {
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue(null)
+    vi.spyOn(driveClient, 'createFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z',
+    })
+
+    // 1st focus: fires immediately
+    await syncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // 2nd focus 10 seconds later: throttled, no new API call
+    vi.advanceTimersByTime(10000)
+    await syncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // 3rd focus after 60s total (advance 50s more): runs sync
+    vi.advanceTimersByTime(50000)
+    await syncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(2)
+  })
+
+  it('respects custom focusThrottleMs option', async () => {
+    const customSyncManager = new CloudSyncManager(
+      identityClient,
+      driveClient,
+      {
+        focusThrottleMs: 5000,
+      }
+    )
+    customSyncManager.setAdapter(adapter)
+
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue(null)
+    vi.spyOn(driveClient, 'createFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z',
+    })
+
+    await customSyncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // Throttled at 2s
+    vi.advanceTimersByTime(2000)
+    await customSyncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // Allowed after 5s total
+    vi.advanceTimersByTime(3000)
+    await customSyncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(2)
+
+    customSyncManager.stop()
+  })
+
+  it('guards against concurrent in-flight syncs', async () => {
+    let resolveFindFile!: (val: any) => void
+    const findFilePromise = new Promise((resolve) => {
+      resolveFindFile = resolve
+    })
+    vi.spyOn(driveClient, 'findFile').mockImplementation(
+      () => findFilePromise as any
+    )
+    vi.spyOn(driveClient, 'createFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z',
+    })
+
+    // Start 1st sync (which will hang until resolveFindFile)
+    const sync1 = syncManager.sync()
+    expect(syncManager.getState().status).toBe('SYNCING')
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // Calling handleWindowFocus while sync is in-flight should be ignored
+    await syncManager.handleWindowFocus()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // Calling sync() while sync is in-flight returns the existing in-flight promise
+    const sync2 = syncManager.sync()
+    expect(driveClient.findFile).toHaveBeenCalledTimes(1)
+
+    // Resolve the in-flight promise
+    resolveFindFile(null)
+    await Promise.all([sync1, sync2])
+
+    expect(syncManager.getState().status).toBe('IDLE')
+    expect(driveClient.createFile).toHaveBeenCalledTimes(1)
   })
 
   it('automatically restores cloud data on fresh device with empty local slots', async () => {

@@ -2,6 +2,7 @@ import {
   type CloudAccountSession,
   CloudSyncManager,
   type ConflictComparison,
+  DEFAULT_FOCUS_THROTTLE_MS,
   DEFAULT_SYNC_DEBOUNCE_MS,
   DEFAULT_SYNC_MAX_WAIT_MS,
   GoogleDriveApiClient,
@@ -19,7 +20,11 @@ import {
 } from 'react'
 import { useCloudAuth } from './useCloudAuth'
 
-export { DEFAULT_SYNC_DEBOUNCE_MS, DEFAULT_SYNC_MAX_WAIT_MS }
+export {
+  DEFAULT_SYNC_DEBOUNCE_MS,
+  DEFAULT_SYNC_MAX_WAIT_MS,
+  DEFAULT_FOCUS_THROTTLE_MS,
+}
 
 export interface UseCloudSyncOptions {
   clientId: string
@@ -27,6 +32,7 @@ export interface UseCloudSyncOptions {
   debounceMs?: number | undefined
   maxWaitMs?: number | undefined
   syncFileName?: string | undefined
+  focusThrottleMs?: number | undefined
 }
 
 export interface UseCloudSyncReturn {
@@ -47,7 +53,14 @@ export const CloudSyncContext = createContext<UseCloudSyncReturn | null>(null)
 export function useCloudSyncInstance(
   options: UseCloudSyncOptions
 ): UseCloudSyncReturn {
-  const { clientId, adapter, debounceMs, maxWaitMs, syncFileName } = options
+  const {
+    clientId,
+    adapter,
+    debounceMs,
+    maxWaitMs,
+    syncFileName,
+    focusThrottleMs,
+  } = options
 
   const auth = useCloudAuth(clientId)
   const driveClient = useMemo(() => new GoogleDriveApiClient(), [])
@@ -61,10 +74,18 @@ export function useCloudSyncInstance(
       debounceMs,
       maxWaitMs,
       syncFileName,
+      focusThrottleMs,
     })
     mgr.setAdapter(adapter)
     return mgr
-  }, [auth.client, driveClient, debounceMs, maxWaitMs, syncFileName])
+  }, [
+    auth.client,
+    driveClient,
+    debounceMs,
+    maxWaitMs,
+    syncFileName,
+    focusThrottleMs,
+  ])
 
   const [syncState, setSyncState] = useState<SyncRuntimeMetadata>(() =>
     syncManager.getState()
@@ -137,6 +158,7 @@ export function CloudSyncProvider({
   debounceMs,
   maxWaitMs,
   syncFileName,
+  focusThrottleMs,
 }: {
   children: ReactNode
   clientId: string
@@ -144,6 +166,7 @@ export function CloudSyncProvider({
   debounceMs?: number | undefined
   maxWaitMs?: number | undefined
   syncFileName?: string | undefined
+  focusThrottleMs?: number | undefined
 }) {
   const value = useCloudSyncInstance({
     clientId,
@@ -151,6 +174,7 @@ export function CloudSyncProvider({
     debounceMs,
     maxWaitMs,
     syncFileName,
+    focusThrottleMs,
   })
 
   return (
