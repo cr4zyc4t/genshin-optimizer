@@ -173,4 +173,41 @@ describe('GenshinSlotAdapter', () => {
       expect.stringContaining('teams update')
     )
   })
+
+  it('rebinds listeners and notifies when updateDatabases is called with new databases', () => {
+    const realDb1 = new ArtCharDatabase(1, createTestDBStorage('go1'))
+    const realDb2 = new ArtCharDatabase(2, createTestDBStorage('go2'))
+    const realDb3 = new ArtCharDatabase(3, createTestDBStorage('go3'))
+    const realDb4 = new ArtCharDatabase(4, createTestDBStorage('go4'))
+    const realAdapter = new GenshinSlotAdapter([
+      realDb1,
+      realDb2,
+      realDb3,
+      realDb4,
+    ])
+    const changeListener = vi.fn()
+    realAdapter.subscribeToChanges(changeListener)
+
+    const replacementDb1 = new ArtCharDatabase(1, createTestDBStorage('go1_rep'))
+    realAdapter.updateDatabases([
+      replacementDb1,
+      realDb2,
+      realDb3,
+      realDb4,
+    ])
+
+    expect(changeListener).toHaveBeenCalledWith('Databases updated')
+    changeListener.mockClear()
+
+    // Mutations on the new database instance should now trigger the listener
+    replacementDb1.teams.new()
+    expect(changeListener).toHaveBeenCalledWith(
+      expect.stringContaining('Slot 1')
+    )
+
+    // Mutations on the old database instance should no longer trigger the listener
+    changeListener.mockClear()
+    realDb1.teams.new()
+    expect(changeListener).not.toHaveBeenCalled()
+  })
 })

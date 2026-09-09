@@ -503,4 +503,59 @@ describe('CloudSyncManager', () => {
     expect(freshManager.getState().status).toBe('UNAUTHENTICATED')
     expect(freshManager.getState().errorMessage).toBeNull()
   })
+
+  it('notifies data changed and debounces sync when setAdapter is called on an active manager', async () => {
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue(null)
+    vi.spyOn(driveClient, 'createFile').mockResolvedValue({
+      id: 'file-new',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z',
+    })
+
+    syncManager.start()
+
+    const newAdapter: MultiSlotDataAdapter = {
+      ...adapter,
+      exportAllSlots: vi.fn().mockResolvedValue({
+        slots: mockSlots,
+        contentHash: 'hash-v2',
+      }),
+      subscribeToChanges: vi.fn().mockReturnValue(() => {}),
+    }
+
+    syncManager.setAdapter(newAdapter)
+
+    expect(syncManager.getState().status).toBe('DEBOUNCING')
+    expect(syncManager.getState().isLocalDirty).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(driveClient.findFile).toHaveBeenCalled()
+    expect(syncManager.getState().status).toBe('IDLE')
+  })
+
+  it('uploads local changes when remote is not newer and contentHash differs from lastRemoteHash even if isLocalDirty was false', async () => {
+    syncManager['updateState']({
+      lastRemoteHash: 'hash-v0',
+      remoteModifiedTime: '2026-09-05T12:00:00Z',
+      isLocalDirty: false,
+    })
+
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z', // same timestamp, not newer
+    })
+    vi.spyOn(driveClient, 'updateFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:30:00Z',
+    })
+
+    await syncManager.sync()
+
+    expect(driveClient.updateFile).toHaveBeenCalled()
+    expect(syncManager.getState().status).toBe('IDLE')
+    expect(syncManager.getState().lastRemoteHash).toBe('hash-v1')
+  })
 })

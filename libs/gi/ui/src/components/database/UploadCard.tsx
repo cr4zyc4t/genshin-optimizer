@@ -453,6 +453,7 @@ function GOUploadAction({
   const { t } = useTranslation('settings')
   const replaceDB = useCallback(() => {
     if (!importedDatabase) return
+    importedDatabase.dbMeta.set({ lastEdit: Date.now() })
     importedDatabase.swapStorage(database)
     setDatabase(index, importedDatabase)
     importedDatabase.toExtraLocalDB()
