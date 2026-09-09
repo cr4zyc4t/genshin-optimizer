@@ -117,6 +117,7 @@ export class CloudSyncManager {
       this.unsubscribeDbChanges = this.adapter.subscribeToChanges((reason) => {
         this.notifyDataChanged(reason)
       })
+      this.notifyDataChanged('Database adapter replaced')
     }
   }
 
@@ -479,8 +480,12 @@ export class CloudSyncManager {
         return
       }
 
-      // Case 5: Local is dirty and remote is not newer -> Upload local to Drive
-      if (this.state.isLocalDirty) {
+      // Case 5: Local is dirty (or content differs from last remote hash) and remote is not newer -> Upload local to Drive
+      if (
+        this.state.isLocalDirty ||
+        (this.state.lastRemoteHash !== null &&
+          localHash !== this.state.lastRemoteHash)
+      ) {
         const updatePackage: UnifiedSyncPackage = {
           version: 1,
           appId: this.adapter.appId,

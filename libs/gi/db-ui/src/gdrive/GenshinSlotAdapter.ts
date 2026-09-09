@@ -9,6 +9,8 @@ import type { ArtCharDatabase } from '@genshin-optimizer/gi/db'
 export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
   readonly appId = 'genshin-optimizer'
   private databases: ArtCharDatabase[]
+  private activeListeners = new Set<(reason?: string) => void>()
+  private dbUnsubscribes: Array<() => void> = []
 
   constructor(databases: ArtCharDatabase[]) {
     this.databases = databases
@@ -16,6 +18,12 @@ export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
 
   public updateDatabases(databases: ArtCharDatabase[]) {
     this.databases = databases
+    if (this.activeListeners.size > 0) {
+      this.bindDbListeners()
+      for (const listener of this.activeListeners) {
+        listener('Databases updated')
+      }
+    }
   }
 
   public async exportAllSlots(): Promise<{
@@ -62,8 +70,16 @@ export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
     }
   }
 
-  public subscribeToChanges(listener: (reason?: string) => void): () => void {
-    const unsubscribes: Array<() => void> = []
+  private bindDbListeners(): void {
+    this.dbUnsubscribes.forEach((unsub) => unsub())
+    this.dbUnsubscribes = []
+
+    const notify = (reason?: string) => {
+      for (const listener of this.activeListeners) {
+        listener(reason)
+      }
+    }
+
     for (let i = 0; i < this.databases.length; i++) {
       const db = this.databases[i]
       const slotNum = i + 1
@@ -75,10 +91,10 @@ export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
       if (db.dataManagers) {
         for (const dm of db.dataManagers) {
           if (typeof dm?.followAny === 'function') {
-            unsubscribes.push(
+            this.dbUnsubscribes.push(
               dm.followAny((key, reason) => {
                 const name = getSlotName()
-                listener(
+                notify(
                   `Slot ${slotNum} (${name}): ${dm.dataKey} ${reason} (${key})`
                 )
               })
@@ -91,26 +107,37 @@ export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
       if (db.dataEntries) {
         for (const de of db.dataEntries) {
           if (typeof de?.follow === 'function') {
-            unsubscribes.push(
+            this.dbUnsubscribes.push(
               de.follow((reason) => {
                 const name = getSlotName()
-                listener(`Slot ${slotNum} (${name}): ${de.key} ${reason}`)
+                notify(`Slot ${slotNum} (${name}): ${de.key} ${reason}`)
               })
             )
           }
         }
       } else if (db.dbMeta?.follow) {
         // Fallback for mocked db or instances without dataEntries array
-        unsubscribes.push(
+        this.dbUnsubscribes.push(
           db.dbMeta.follow((reason, obj) => {
             const name = obj?.name ?? getSlotName()
-            listener(`Slot ${slotNum} (${name}): ${reason}`)
+            notify(`Slot ${slotNum} (${name}): ${reason}`)
           })
         )
       }
     }
+  }
+
+  public subscribeToChanges(listener: (reason?: string) => void): () => void {
+    this.activeListeners.add(listener)
+    if (this.activeListeners.size === 1) {
+      this.bindDbListeners()
+    }
     return () => {
-      unsubscribes.forEach((unsub) => unsub())
+      this.activeListeners.delete(listener)
+      if (this.activeListeners.size === 0) {
+        this.dbUnsubscribes.forEach((unsub) => unsub())
+        this.dbUnsubscribes = []
+      }
     }
   }
 
