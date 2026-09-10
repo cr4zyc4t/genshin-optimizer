@@ -12,6 +12,7 @@
 
 ### Session 2026-09-10
 - Q: Where should the persistent storage write listener and key blacklist filtering reside in the codebase? → A: Inside `GenshinSlotAdapter` satisfying the existing `subscribeToChanges` contract, keeping `CloudSyncManager` decoupled and platform-agnostic while the adapter manages storage write event observation and blacklist filtering.
+- Q: How should the key blacklist evaluate whether a storage key is ignored? → A: Exact matches plus prefix patterns, evaluating target keys against both a set of exact keys (e.g., `snow`, `silly`, `newTabKey`) and namespace prefix patterns (e.g., `gdrive_`, `infoShown_`).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -41,8 +42,8 @@ As a user, I want internal synchronization operations (such as updating sync met
 
 **Acceptance Scenarios**:
 
-1. **Given** an active cloud synchronization session, **When** the system writes or removes internal synchronization metadata or authentication tokens in persistent storage, **Then** these keys are ignored by the trigger filter and no synchronization countdown is started.
-2. **Given** user interactions that update transient non-database UI preferences in storage, **When** these non-synchronized keys are updated or removed, **Then** the trigger filter ignores them and no synchronization is scheduled.
+1. **Given** an active cloud synchronization session, **When** the system writes or removes internal synchronization metadata or authentication tokens in persistent storage (e.g., matching the `gdrive_` prefix), **Then** these keys are ignored by the trigger filter and no synchronization countdown is started.
+2. **Given** user interactions that update transient non-database UI preferences in storage (e.g., matching `snow`, `silly`, or `infoShown_` prefixes), **When** these non-synchronized keys are updated or removed, **Then** the trigger filter ignores them and no synchronization is scheduled.
 3. **Given** incoming data being downloaded and applied from the cloud during remote sync, **When** the system writes remote data into local storage, **Then** internal sync guards suppress change triggers to prevent an echo sync back to the cloud.
 
 ---
@@ -81,6 +82,7 @@ As an open-source contributor and maintainer, I want the UI database components 
 
 - **Rapid successive storage writes**: Multiple rapid writes to non-blacklisted keys within the debounce window MUST reset the debounce timer and execute exactly one upload once modifications settle, capped by the configured maximum wait time.
 - **Concurrent remote import execution**: When remote cloud data is being downloaded and applied into persistent storage, all storage writes during that import cycle MUST be suppressed so that cloud data application does not trigger an immediate re-upload.
+- **Prefix and exact key exclusion**: Any storage operation where the key matches either an exact excluded entry or an excluded prefix pattern (such as `gdrive_` or `infoShown_`) MUST be ignored immediately.
 - **Mixed write operations**: A batch of operations containing both blacklisted keys (e.g., sync metadata) and non-blacklisted keys (e.g., character data) MUST trigger synchronization due to the presence of non-blacklisted modifications.
 - **Storage clear during active debouncing**: If a clear occurs while a debounce countdown from a previous modification is active, the debounce timer MUST reset and process the cleared state upon expiration.
 - **Unauthenticated state**: Storage writes that occur when no user is signed in to cloud sync MUST update the local dirty flag or remain safely in local storage without attempting unauthorized network calls.
@@ -90,9 +92,9 @@ As an open-source contributor and maintainer, I want the UI database components 
 ### Functional Requirements
 
 - **FR-001**: The system MUST intercept persistent storage write and delete operations—specifically `setItem`, `removeItem`, and `clear`—using a storage proxy installed at application startup.
-- **FR-002**: The system MUST evaluate the target key for every `setItem` and `removeItem` operation against an exclusion list (blacklist) before deciding whether to trigger synchronization.
-- **FR-003**: The key exclusion list MUST include all internal synchronization keys, including synchronization runtime metadata and authentication session caches, to prevent infinite self-triggering synchronization loops.
-- **FR-004**: The key exclusion list MUST include non-database transient UI preferences that do not belong to the multi-slot database state.
+- **FR-002**: The system MUST evaluate the target key for every `setItem` and `removeItem` operation against an exclusion list (blacklist) using a hybrid check that evaluates both exact key matches and prefix pattern matches before deciding whether to trigger synchronization.
+- **FR-003**: The key exclusion list MUST include all internal synchronization keys, including synchronization runtime metadata and authentication session caches (such as keys starting with the `gdrive_` prefix), to prevent infinite self-triggering synchronization loops.
+- **FR-004**: The key exclusion list MUST include non-database transient UI preferences (such as `snow`, `silly`, `newTabKey`, and keys matching the `infoShown_` prefix) that do not belong to the multi-slot database state.
 - **FR-005**: When a `clear` operation occurs, the system MUST treat it as a significant data modification and schedule synchronization without requiring key-level filtering.
 - **FR-006**: When any non-blacklisted `setItem`, non-blacklisted `removeItem`, or `clear` operation is detected, the system MUST notify the synchronization manager to set the local dirty state and start or reset the debounce timer.
 - **FR-007**: The debounce duration (default 5 seconds) and maximum wait ceiling (default 8 seconds) MUST remain identical to existing synchronization timing behavior.
@@ -103,7 +105,7 @@ As an open-source contributor and maintainer, I want the UI database components 
 ### Key Entities
 
 - **Storage Mutation Event**: Represents an intercepted storage operation, specifying the operation type (`setItem`, `removeItem`, or `clear`), the affected key (for item operations), the stored value (for `setItem`), and whether it originated from a method call or property assignment.
-- **Exclusion Filter (Blacklist)**: The collection of storage keys and prefix patterns that are excluded from triggering cloud synchronization, preventing loops and redundant network activity.
+- **Exclusion Filter (Blacklist)**: The data structure containing exact key strings (e.g. `snow`, `silly`, `newTabKey`) and namespace prefix strings (e.g. `gdrive_`, `infoShown_`) evaluated against storage operation keys to suppress redundant or recursive sync triggers.
 - **Sync Trigger Controller**: The lifecycle component that observes filtered storage mutation events and coordinates debounced synchronization requests with the cloud synchronization manager.
 
 ## Success Criteria *(mandatory)*
@@ -112,7 +114,7 @@ As an open-source contributor and maintainer, I want the UI database components 
 
 - **SC-001**: 100% of persistent data modifications across all 4 database slots (including direct record edits, slot swaps, and data imports) reliably initiate synchronization within 100ms of storage write.
 - **SC-002**: Zero recursive synchronization loops occur when saving sync metadata, refreshing authentication tokens, or applying remote cloud backups.
-- **SC-003**: 100% of storage writes targeting excluded keys result in zero synchronization timer resets and zero network upload requests.
+- **SC-003**: 100% of storage writes targeting excluded exact keys or prefix patterns result in zero synchronization timer resets and zero network upload requests.
 - **SC-004**: All ad-hoc synchronization trigger patches in UI cards (`DatabaseCard`, `UploadCard`) are eliminated, achieving complete architectural decoupling.
 - **SC-005**: Debounce timing (5-second debounce) and maximum wait duration (8-second cap) remain unchanged, ensuring consistent user experience and network traffic profile.
 
