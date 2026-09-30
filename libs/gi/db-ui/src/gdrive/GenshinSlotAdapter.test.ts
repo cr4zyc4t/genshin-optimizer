@@ -1,14 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GenshinSlotAdapter } from './GenshinSlotAdapter'
-import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
-import { createTestDBStorage } from '@genshin-optimizer/common/database'
+import type { ArtCharDatabase } from '@genshin-optimizer/gi/db'
 import type { UnifiedSyncPackage } from '@genshin-optimizer/common/gdrive'
+import type {
+  StorageWriteEvent,
+  StorageWriteListener,
+} from '@genshin-optimizer/common/database'
 
 describe('GenshinSlotAdapter', () => {
   let mockDbs: ArtCharDatabase[]
   let adapter: GenshinSlotAdapter
+  let registeredListener: StorageWriteListener | null
+  let mockUnsubscribe: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    registeredListener = null
+    mockUnsubscribe = vi.fn()
+
     mockDbs = ([1, 2, 3, 4] as const).map((idx) => {
       return {
         chars: { keys: idx === 1 ? ['Amber'] : [] },
@@ -17,7 +25,6 @@ describe('GenshinSlotAdapter', () => {
         dbMeta: {
           get: () => ({ name: `Slot ${idx}`, lastEdit: 1000 * idx }),
           set: vi.fn(),
-          follow: vi.fn().mockReturnValue(() => {}),
         },
         exportGOOD: vi.fn().mockReturnValue({
           format: 'GOOD',
@@ -32,7 +39,12 @@ describe('GenshinSlotAdapter', () => {
       } as unknown as ArtCharDatabase
     })
 
-    adapter = new GenshinSlotAdapter(mockDbs)
+    adapter = new GenshinSlotAdapter(mockDbs, {
+      subscribeStorage: (listener) => {
+        registeredListener = listener
+        return mockUnsubscribe
+      },
+    })
   })
 
   it('exports all 4 slots with slot metadata and content hash', async () => {
@@ -107,105 +119,164 @@ describe('GenshinSlotAdapter', () => {
     expect(adapter.isLocalEmpty()).toBe(true)
   })
 
-  it('notifies on team change and build add/remove with real ArtCharDatabase', () => {
-    const realDb1 = new ArtCharDatabase(1, createTestDBStorage('go'))
-    const realDb2 = new ArtCharDatabase(2, createTestDBStorage('go'))
-    const realDb3 = new ArtCharDatabase(3, createTestDBStorage('go'))
-    const realDb4 = new ArtCharDatabase(4, createTestDBStorage('go'))
-    const realAdapter = new GenshinSlotAdapter([
-      realDb1,
-      realDb2,
-      realDb3,
-      realDb4,
-    ])
+  it('subscribes to storage proxy and notifies on non-blacklisted setItem and removeItem (US1)', () => {
     const changeListener = vi.fn()
-    realAdapter.subscribeToChanges(changeListener)
+    adapter.subscribeToChanges(changeListener)
 
-    // 1. Team addition and edit
-    const teamId = realDb1.teams.new()
-    expect(changeListener).toHaveBeenCalled()
+    expect(registeredListener).toBeDefined()
+
+    // 1. Non-blacklisted setItem
+    registeredListener!({
+      type: 'setItem',
+      key: 'artifact_123',
+      value: '{}',
+      source: 'method',
+    })
+    expect(changeListener).toHaveBeenCalledWith('storage:setItem:artifact_123')
     changeListener.mockClear()
 
-    realDb1.teams.set(teamId, { name: 'Super Team' })
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('teams update')
-    )
-    changeListener.mockClear()
-
-    // 2. Build addition and removal
-    const buildId = realDb1.builds.new({ characterKey: 'Amber' })
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('builds')
-    )
-    changeListener.mockClear()
-
-    realDb1.builds.remove(buildId)
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('builds remove')
-    )
-    changeListener.mockClear()
-
-    // 3. TC Build addition and removal
-    const buildTcId = realDb1.buildTcs.newFromBuild('Amber')!
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('buildTcs')
-    )
-    changeListener.mockClear()
-
-    realDb1.buildTcs.remove(buildTcId)
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('buildTcs remove')
-    )
-    changeListener.mockClear()
-
-    // 4. Verify that after importAllSlots (which invokes db.clear()), listeners still work
-    realDb1.clear()
-    changeListener.mockClear()
-
-    realDb1.builds.new({ characterKey: 'Amber' })
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('builds')
-    )
-    changeListener.mockClear()
-
-    realDb1.teams.set(teamId, { name: 'After Clear Team' })
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('teams update')
-    )
+    // 2. Non-blacklisted removeItem
+    registeredListener!({
+      type: 'removeItem',
+      key: 'char_amber',
+      source: 'method',
+    })
+    expect(changeListener).toHaveBeenCalledWith('storage:removeItem:char_amber')
   })
 
-  it('rebinds listeners and notifies when updateDatabases is called with new databases', () => {
-    const realDb1 = new ArtCharDatabase(1, createTestDBStorage('go1'))
-    const realDb2 = new ArtCharDatabase(2, createTestDBStorage('go2'))
-    const realDb3 = new ArtCharDatabase(3, createTestDBStorage('go3'))
-    const realDb4 = new ArtCharDatabase(4, createTestDBStorage('go4'))
-    const realAdapter = new GenshinSlotAdapter([
-      realDb1,
-      realDb2,
-      realDb3,
-      realDb4,
-    ])
+  it('filters out blacklisted keys from notifying subscribers (US2)', () => {
     const changeListener = vi.fn()
-    realAdapter.subscribeToChanges(changeListener)
+    adapter.subscribeToChanges(changeListener)
 
-    const replacementDb1 = new ArtCharDatabase(
-      1,
-      createTestDBStorage('go1_rep')
-    )
-    realAdapter.updateDatabases([replacementDb1, realDb2, realDb3, realDb4])
+    const blacklistedEvents: StorageWriteEvent[] = [
+      {
+        type: 'setItem',
+        key: 'gdrive_sync_metadata',
+        value: '{}',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'gdrive_auth_session',
+        value: '{}',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'gdrive_temp',
+        value: '1',
+        source: 'method',
+      },
+      {
+        type: 'removeItem',
+        key: 'gdrive_sync_metadata',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'snow',
+        value: 'on',
+        source: 'method',
+      },
+      {
+        type: 'removeItem',
+        key: 'snow',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'silly',
+        value: 'on',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'newTabKey',
+        value: 'debug',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'infoShown_characters',
+        value: 'true',
+        source: 'method',
+      },
+      {
+        type: 'setItem',
+        key: 'infoShown_artifacts',
+        value: 'true',
+        source: 'method',
+      },
+    ]
 
-    expect(changeListener).toHaveBeenCalledWith('Databases updated')
-    changeListener.mockClear()
+    for (const evt of blacklistedEvents) {
+      registeredListener!(evt)
+    }
 
-    // Mutations on the new database instance should now trigger the listener
-    replacementDb1.teams.new()
-    expect(changeListener).toHaveBeenCalledWith(
-      expect.stringContaining('Slot 1')
-    )
-
-    // Mutations on the old database instance should no longer trigger the listener
-    changeListener.mockClear()
-    realDb1.teams.new()
     expect(changeListener).not.toHaveBeenCalled()
+  })
+
+  it('unconditionally notifies on storage clear (US3)', () => {
+    const changeListener = vi.fn()
+    adapter.subscribeToChanges(changeListener)
+
+    registeredListener!({
+      type: 'clear',
+      source: 'method',
+    })
+
+    expect(changeListener).toHaveBeenCalledWith('storage:clear')
+  })
+
+  it('manages subscription lifecycle and unregisters when subscriber count drops to zero', () => {
+    const changeListener1 = vi.fn()
+    const changeListener2 = vi.fn()
+
+    const unsub1 = adapter.subscribeToChanges(changeListener1)
+    const unsub2 = adapter.subscribeToChanges(changeListener2)
+
+    registeredListener!({
+      type: 'setItem',
+      key: 'dbIndex',
+      value: '2',
+      source: 'method',
+    })
+
+    expect(changeListener1).toHaveBeenCalledTimes(1)
+    expect(changeListener2).toHaveBeenCalledTimes(1)
+
+    // Unsubscribe first listener
+    unsub1()
+    expect(mockUnsubscribe).not.toHaveBeenCalled()
+
+    registeredListener!({
+      type: 'setItem',
+      key: 'dbIndex',
+      value: '3',
+      source: 'method',
+    })
+
+    expect(changeListener1).toHaveBeenCalledTimes(1)
+    expect(changeListener2).toHaveBeenCalledTimes(2)
+
+    // Unsubscribe second listener
+    unsub2()
+    expect(mockUnsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('updates databases cleanly without binding database manager listeners (US4)', () => {
+    const newMockDbs = ([1, 2, 3, 4] as const).map((idx) => {
+      return {
+        chars: { keys: [`Char${idx}`] },
+        arts: { keys: [] },
+        weapons: { keys: [] },
+        dbMeta: {
+          get: () => ({ name: `Slot ${idx}`, lastEdit: 1000 * idx }),
+        },
+      } as unknown as ArtCharDatabase
+    })
+
+    adapter.updateDatabases(newMockDbs)
+    expect(adapter.isLocalEmpty()).toBe(false)
   })
 })

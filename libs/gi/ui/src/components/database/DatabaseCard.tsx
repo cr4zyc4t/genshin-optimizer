@@ -103,8 +103,6 @@ function DataCard({ index, readOnly }: { index: number; readOnly: boolean }) {
 
   const onSwap = useCallback(() => {
     if (current) return
-    mainDB.dbMeta.set({ lastEdit: Date.now() })
-    database.dbMeta.set({ lastEdit: Date.now() })
     mainDB.toExtraLocalDB()
     database.swapStorage(mainDB)
     setDatabase(index, database)

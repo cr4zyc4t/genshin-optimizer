@@ -558,4 +558,79 @@ describe('CloudSyncManager', () => {
     expect(syncManager.getState().status).toBe('IDLE')
     expect(syncManager.getState().lastRemoteHash).toBe('hash-v1')
   })
+
+  it('triggers debounced sync when adapter notifies data changed (T009 / US1)', async () => {
+    let adapterListener: ((reason?: string) => void) | null = null
+    adapter.subscribeToChanges = vi.fn((listener) => {
+      adapterListener = listener
+      return () => {}
+    })
+
+    syncManager.start()
+
+    expect(adapter.subscribeToChanges).toHaveBeenCalled()
+    expect(adapterListener).toBeDefined()
+
+    // Adapter dispatches storage change event
+    adapterListener!('storage:setItem:artifact_123')
+
+    expect(syncManager.getState().status).toBe('DEBOUNCING')
+    expect(syncManager.getState().isLocalDirty).toBe(true)
+
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue(null)
+    vi.spyOn(driveClient, 'createFile').mockResolvedValue({
+      id: 'file-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: '2026-09-05T12:00:00Z',
+    })
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(driveClient.createFile).toHaveBeenCalled()
+    expect(syncManager.getState().status).toBe('IDLE')
+  })
+
+  it('suppresses change notifications emitted while isApplyingRemote is true during importAllSlots (T011 / US2)', async () => {
+    let adapterListener: ((reason?: string) => void) | null = null
+    adapter.subscribeToChanges = vi.fn((listener) => {
+      adapterListener = listener
+      return () => {}
+    })
+
+    // When importAllSlots is called, simulate writing to storage which invokes notifyDataChanged
+    adapter.importAllSlots = vi.fn(async () => {
+      // Simulate storage proxy firing during remote apply
+      adapterListener?.('storage:setItem:char_amber')
+      syncManager.notifyDataChanged('storage:setItem:char_amber')
+    })
+
+    syncManager['updateState']({
+      lastRemoteHash: 'hash-v1',
+      remoteModifiedTime: new Date(Date.now() - 5000).toISOString(),
+      isLocalDirty: false,
+    })
+
+    syncManager.start()
+
+    const remotePackage: UnifiedSyncPackage = {
+      version: 1,
+      appId: 'genshin-optimizer',
+      createdAt: 5000,
+      contentHash: 'hash-remote',
+      slots: mockSlots,
+    }
+
+    vi.spyOn(driveClient, 'findFile').mockResolvedValue({
+      id: 'remote-1',
+      name: 'genshin_optimizer_sync.json',
+      modifiedTime: new Date(Date.now() + 10000).toISOString(),
+    })
+    vi.spyOn(driveClient, 'downloadFile').mockResolvedValue(remotePackage)
+
+    await syncManager.sync()
+
+    // Despite notifyDataChanged being called during import, status should NOT be DEBOUNCING and local should not be dirty
+    expect(syncManager.getState().status).toBe('IDLE')
+    expect(syncManager.getState().isLocalDirty).toBe(false)
+  })
 })

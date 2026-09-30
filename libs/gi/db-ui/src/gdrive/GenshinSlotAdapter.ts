@@ -1,3 +1,8 @@
+import {
+  addGlobalStorageWriteListener,
+  type StorageWriteEvent,
+  type StorageWriteListener,
+} from '@genshin-optimizer/common/database'
 import type {
   MultiSlotDataAdapter,
   SlotSummary,
@@ -5,25 +10,37 @@ import type {
   UnifiedSyncPackage,
 } from '@genshin-optimizer/common/gdrive'
 import type { ArtCharDatabase } from '@genshin-optimizer/gi/db'
+import {
+  DEFAULT_STORAGE_BLACKLIST,
+  isKeyBlacklisted,
+  type StorageKeyBlacklist,
+} from './blacklist'
+
+export interface GenshinSlotAdapterOptions {
+  blacklist?: StorageKeyBlacklist
+  subscribeStorage?: (listener: StorageWriteListener) => () => void
+}
 
 export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
   readonly appId = 'genshin-optimizer'
   private databases: ArtCharDatabase[]
   private activeListeners = new Set<(reason?: string) => void>()
-  private dbUnsubscribes: Array<() => void> = []
+  private storageUnsubscribe: (() => void) | null = null
+  private blacklist: StorageKeyBlacklist
+  private subscribeStorageFn: (listener: StorageWriteListener) => () => void
 
-  constructor(databases: ArtCharDatabase[]) {
+  constructor(
+    databases: ArtCharDatabase[],
+    options: GenshinSlotAdapterOptions = {}
+  ) {
     this.databases = databases
+    this.blacklist = options.blacklist ?? DEFAULT_STORAGE_BLACKLIST
+    this.subscribeStorageFn =
+      options.subscribeStorage ?? addGlobalStorageWriteListener
   }
 
   public updateDatabases(databases: ArtCharDatabase[]) {
     this.databases = databases
-    if (this.activeListeners.size > 0) {
-      this.bindDbListeners()
-      for (const listener of this.activeListeners) {
-        listener('Databases updated')
-      }
-    }
   }
 
   public async exportAllSlots(): Promise<{
@@ -70,73 +87,39 @@ export class GenshinSlotAdapter implements MultiSlotDataAdapter<unknown> {
     }
   }
 
-  private bindDbListeners(): void {
-    this.dbUnsubscribes.forEach((unsub) => unsub())
-    this.dbUnsubscribes = []
+  public subscribeToChanges(listener: (reason?: string) => void): () => void {
+    this.activeListeners.add(listener)
 
-    const notify = (reason?: string) => {
-      for (const listener of this.activeListeners) {
-        listener(reason)
-      }
+    if (this.activeListeners.size === 1) {
+      this.storageUnsubscribe = this.subscribeStorageFn(
+        (event: StorageWriteEvent) => {
+          if (event.type === 'clear') {
+            this.notify('storage:clear')
+            return
+          }
+
+          if (event.key && !isKeyBlacklisted(event.key, this.blacklist)) {
+            this.notify(`storage:${event.type}:${event.key}`)
+          }
+        }
+      )
     }
 
-    for (let i = 0; i < this.databases.length; i++) {
-      const db = this.databases[i]
-      const slotNum = i + 1
-      if (!db) continue
-
-      const getSlotName = () => db.dbMeta?.get()?.name ?? `Database ${slotNum}`
-
-      // Follow all data managers (chars, arts, weapons, teams, teamChars, builds, buildTcs, optConfigs, charMeta, generatedBuildList)
-      if (db.dataManagers) {
-        for (const dm of db.dataManagers) {
-          if (typeof dm?.followAny === 'function') {
-            this.dbUnsubscribes.push(
-              dm.followAny((key, reason) => {
-                const name = getSlotName()
-                notify(
-                  `Slot ${slotNum} (${name}): ${dm.dataKey} ${reason} (${key})`
-                )
-              })
-            )
-          }
-        }
-      }
-
-      // Follow all data entries (dbMeta, displayWeapon, displayArtifact, displayCharacter, displayTool, displayTeam, displayArchive)
-      if (db.dataEntries) {
-        for (const de of db.dataEntries) {
-          if (typeof de?.follow === 'function') {
-            this.dbUnsubscribes.push(
-              de.follow((reason) => {
-                const name = getSlotName()
-                notify(`Slot ${slotNum} (${name}): ${de.key} ${reason}`)
-              })
-            )
-          }
-        }
-      } else if (db.dbMeta?.follow) {
-        // Fallback for mocked db or instances without dataEntries array
-        this.dbUnsubscribes.push(
-          db.dbMeta.follow((reason, obj) => {
-            const name = obj?.name ?? getSlotName()
-            notify(`Slot ${slotNum} (${name}): ${reason}`)
-          })
-        )
+    return () => {
+      this.activeListeners.delete(listener)
+      if (this.activeListeners.size === 0) {
+        this.storageUnsubscribe?.()
+        this.storageUnsubscribe = null
       }
     }
   }
 
-  public subscribeToChanges(listener: (reason?: string) => void): () => void {
-    this.activeListeners.add(listener)
-    if (this.activeListeners.size === 1) {
-      this.bindDbListeners()
-    }
-    return () => {
-      this.activeListeners.delete(listener)
-      if (this.activeListeners.size === 0) {
-        this.dbUnsubscribes.forEach((unsub) => unsub())
-        this.dbUnsubscribes = []
+  private notify(reason?: string): void {
+    for (const listener of this.activeListeners) {
+      try {
+        listener(reason)
+      } catch (err) {
+        console.error('[GenshinSlotAdapter] Error in change listener:', err)
       }
     }
   }
