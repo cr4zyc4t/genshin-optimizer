@@ -261,7 +261,7 @@ export class ArtifactDataManager extends DataManager<
       this.set(importId, importArt, !foundDupOrUpgrade)
     })
     const idtoRemoveArr = Array.from(idsToRemove)
-    if (result.keepWepArtiNotInImport || result.ignoreDups)
+    if (result.keepArtifactsNotInImport || result.ignoreDups)
       result.artifacts.notInImport = idtoRemoveArr.length
     else idtoRemoveArr.forEach((k) => this.remove(k))
 

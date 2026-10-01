@@ -188,13 +188,11 @@ describe('GenshinSlotAdapter', () => {
     const changeListener = vi.fn()
     realAdapter.subscribeToChanges(changeListener)
 
-    const replacementDb1 = new ArtCharDatabase(1, createTestDBStorage('go1_rep'))
-    realAdapter.updateDatabases([
-      replacementDb1,
-      realDb2,
-      realDb3,
-      realDb4,
-    ])
+    const replacementDb1 = new ArtCharDatabase(
+      1,
+      createTestDBStorage('go1_rep')
+    )
+    realAdapter.updateDatabases([replacementDb1, realDb2, realDb3, realDb4])
 
     expect(changeListener).toHaveBeenCalledWith('Databases updated')
     changeListener.mockClear()

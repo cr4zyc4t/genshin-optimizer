@@ -160,9 +160,10 @@ export class ArtCharDatabase extends Database {
   }
   importGOOD(
     good: IGOOD & IGO,
-    keepWepArtiNotInImport: boolean,
+    keepWeaponsNotInImport: boolean,
     keepCharNotInImport: boolean,
-    ignoreDups: boolean
+    ignoreDups: boolean,
+    keepArtifactsNotInImport = keepWeaponsNotInImport
   ): ImportResult {
     good = migrateGOOD(good)
     const source = good.source ?? 'Unknown'
@@ -175,9 +176,10 @@ export class ArtCharDatabase extends Database {
     }
     const result: ImportResult = newImportResult(
       source,
-      keepWepArtiNotInImport,
+      keepWeaponsNotInImport,
       keepCharNotInImport,
-      ignoreDups
+      ignoreDups,
+      keepArtifactsNotInImport
     )
 
     // Follow updates from char/art/weapon to gather import results

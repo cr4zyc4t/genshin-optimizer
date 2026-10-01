@@ -25,9 +25,10 @@ function newImportCounter(): ImportResultCounter {
 
 export function newImportResult(
   source: string,
-  keepWepArtiNotInImport: boolean,
+  keepWeaponsNotInImport: boolean,
   keepCharNotInImport: boolean,
-  ignoreDups: boolean
+  ignoreDups: boolean,
+  keepArtifactsNotInImport = keepWeaponsNotInImport
 ): ImportResult {
   return {
     type: 'GOOD',
@@ -39,7 +40,8 @@ export function newImportResult(
     buildTcs: newImportCounter(),
     teams: newImportCounter(),
     teamChars: newImportCounter(),
-    keepWepArtiNotInImport,
+    keepWeaponsNotInImport,
+    keepArtifactsNotInImport,
     keepCharNotInImport,
     ignoreDups,
   }
@@ -78,7 +80,8 @@ export type ImportResult = {
   buildTcs: ImportResultCounter
   teams: ImportResultCounter
   teamChars: ImportResultCounter
-  keepWepArtiNotInImport: boolean
+  keepWeaponsNotInImport: boolean
+  keepArtifactsNotInImport: boolean
   keepCharNotInImport: boolean
   ignoreDups: boolean
 }

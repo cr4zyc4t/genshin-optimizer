@@ -318,6 +318,27 @@ describe('Database', () => {
     ).toEqual('CinnabarSpindle')
   })
 
+  test('can independently keep weapons and delete artifacts outside import', () => {
+    const weaponId = database.weapons.new(initialWeapon('Akuoumaru'))
+    const artifactId = database.arts.new(
+      randomizeArtifact({ slotKey: 'flower', setKey: 'Instructor' })
+    )
+    const good = {
+      format: 'GOOD',
+      version: 1,
+      source: 'Scanner',
+      artifacts: [
+        randomizeArtifact({ slotKey: 'flower', setKey: 'Adventurer' }),
+      ],
+      weapons: [initialWeapon('BlackTassel')],
+    } as IGOOD & IGO
+
+    database.importGOOD(good, true, false, false, false)
+
+    expect(database.weapons.get(weaponId)).toBeDefined()
+    expect(database.arts.get(artifactId)).toBeUndefined()
+  })
+
   test('should merge scanner with dups for weapons', () => {
     const a1 = initialWeapon('Akuoumaru')
     const a2old = initialWeapon('BlackTassel')
