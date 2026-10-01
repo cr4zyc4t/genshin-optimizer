@@ -43,7 +43,9 @@ export function UploadCard({
   const [data, setdata] = useState('')
   const [filename, setfilename] = useState('')
   const [errorMsg, setErrorMsg] = useState('') // TODO localize error msg
-  const [keepWepArtiNotInImport, setKeepWepArtiNotInImport] = useState(false)
+  const [keepWeaponsNotInImport, setKeepWeaponsNotInImport] = useState(false)
+  const [keepArtifactsNotInImport, setKeepArtifactsNotInImport] =
+    useState(false)
   const [keepCharNotInImport, setKeepCharNotInImport] = useState(true)
   const [ignoreDups, setIgnoreDups] = useState(false)
   const { importResult, importedDatabase } =
@@ -71,9 +73,10 @@ export function UploadCard({
         )
         const importResult = importedDatabase.importGOOD(
           parsed,
-          keepWepArtiNotInImport,
+          keepWeaponsNotInImport,
           keepCharNotInImport,
-          ignoreDups
+          ignoreDups,
+          keepArtifactsNotInImport
         )
         if (!importResult) {
           setErrorMsg('uploadCard.error.goInvalid')
@@ -87,7 +90,8 @@ export function UploadCard({
     }, [
       data,
       database,
-      keepWepArtiNotInImport,
+      keepWeaponsNotInImport,
+      keepArtifactsNotInImport,
       keepCharNotInImport,
       ignoreDups,
       index,
@@ -182,9 +186,9 @@ export function UploadCard({
           <Tooltip
             title={
               <Typography>
-                {keepWepArtiNotInImport
-                  ? t('uploadCard.tooltip.keepWepArtiNotInImport')
-                  : t('uploadCard.tooltip.delWepArtiNotInImport')}
+                {keepWeaponsNotInImport
+                  ? t('uploadCard.tooltip.keepWeaponsNotInImport')
+                  : t('uploadCard.tooltip.delWeaponsNotInImport')}
               </Typography>
             }
             placement="top"
@@ -194,19 +198,50 @@ export function UploadCard({
               <Button
                 fullWidth
                 disabled={!data}
-                color={keepWepArtiNotInImport ? 'primary' : 'success'}
+                color={keepWeaponsNotInImport ? 'primary' : 'success'}
                 onClick={() =>
-                  setKeepWepArtiNotInImport(!keepWepArtiNotInImport)
+                  setKeepWeaponsNotInImport(!keepWeaponsNotInImport)
                 }
                 startIcon={
-                  keepWepArtiNotInImport ? (
+                  keepWeaponsNotInImport ? (
                     <CheckBoxOutlineBlank />
                   ) : (
                     <CheckBox />
                   )
                 }
               >
-                {t('uploadCard.buttons.delWepArtiNotInImport')}
+                {t('uploadCard.buttons.delWeaponsNotInImport')}
+              </Button>
+            </Box>
+          </Tooltip>
+          <Tooltip
+            title={
+              <Typography>
+                {keepArtifactsNotInImport
+                  ? t('uploadCard.tooltip.keepArtifactsNotInImport')
+                  : t('uploadCard.tooltip.delArtifactsNotInImport')}
+              </Typography>
+            }
+            placement="top"
+            arrow
+          >
+            <Box sx={{ flexGrow: 1, flexBasis: '10em' }}>
+              <Button
+                fullWidth
+                disabled={!data}
+                color={keepArtifactsNotInImport ? 'primary' : 'success'}
+                onClick={() =>
+                  setKeepArtifactsNotInImport(!keepArtifactsNotInImport)
+                }
+                startIcon={
+                  keepArtifactsNotInImport ? (
+                    <CheckBoxOutlineBlank />
+                  ) : (
+                    <CheckBox />
+                  )
+                }
+              >
+                {t('uploadCard.buttons.delArtifactsNotInImport')}
               </Button>
             </Box>
           </Tooltip>
