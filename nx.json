@@ -99,7 +99,7 @@
     }
   },
   "affected": {
-    "defaultBase": "develop"
+    "defaultBase": "master"
   },
   "plugins": [
     {

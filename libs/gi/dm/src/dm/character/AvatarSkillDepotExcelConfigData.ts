@@ -98,28 +98,31 @@ const avatarSkillDepotExcelConfigData = Object.fromEntries(
       } = obfSkill
       return {
         ...obfSkillTrim,
-        inherentProudSkillOpens: inherentProudSkillOpens.map((openObf) => {
-          const {
-            [deobfPropMappings.needAvatarPromoteLevel]: needAvatarPromoteLevel,
-            ...openObfTrim
-          } = openObf
-          return {
-            ...openObfTrim,
-            needAvatarPromoteLevel,
-          }
-        }),
-        lockedProudSkillOpens: lockedProudSkillOpens.map((openObf) => {
-          const {
-            [deobfPropMappings.numberArray]: numberArray,
-            [deobfPropMappings.unlockCondition]: unlockCondition,
-            ...openObfTrim
-          } = openObf
-          return {
-            ...openObfTrim,
-            numberArray,
-            unlockCondition,
-          }
-        }),
+        inherentProudSkillOpens:
+          inherentProudSkillOpens?.map((openObf) => {
+            const {
+              [deobfPropMappings.needAvatarPromoteLevel]:
+                needAvatarPromoteLevel,
+              ...openObfTrim
+            } = openObf
+            return {
+              ...openObfTrim,
+              needAvatarPromoteLevel,
+            }
+          }) ?? [],
+        lockedProudSkillOpens:
+          lockedProudSkillOpens?.map((openObf) => {
+            const {
+              [deobfPropMappings.numberArray]: numberArray,
+              [deobfPropMappings.unlockCondition]: unlockCondition,
+              ...openObfTrim
+            } = openObf
+            return {
+              ...openObfTrim,
+              numberArray,
+              unlockCondition,
+            }
+          }) ?? [],
       } as AvatarSkillDepotExcelConfigData
     })
     .map((skill) => {
