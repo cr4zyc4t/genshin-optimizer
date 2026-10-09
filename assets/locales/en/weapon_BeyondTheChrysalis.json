@@ -1,6 +1,4 @@
 {
-  "devotion": "Winds of Devotion",
-  "defiance": "Winds of Defiance",
-  "plenty": "Winds of Plenty",
-  "energyRegen": "Energy Restored"
+  "devotionCond": "Under the Winds of Devotion effect",
+  "defianceCond": "Under the Winds of Defiance effect"
 }
