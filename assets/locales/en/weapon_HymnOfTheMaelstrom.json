@@ -1,4 +1,3 @@
 {
-  "vintage": "Vatsamonga's Vatic Vintage stacks",
-  "boost": "After triggering Frozen or Stellar Swirl"
+  "frozenSwirlCond": "After triggering a Frozen or Stellar Swirl reaction"
 }
